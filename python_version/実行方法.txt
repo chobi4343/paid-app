@@ -1,0 +1,68 @@
+====================================
+有給管理アプリ - Python版 実行方法
+====================================
+
+【最も簡単な方法】デモ版（Firebaseなし）
+------------------------------------------
+1. ターミナルを開く
+
+2. このフォルダに移動
+   cd "/Users/chobi/AI制作/有給管理/python_version"
+
+3. 必要なパッケージをインストール（初回のみ）
+   pip3 install streamlit pandas python-dateutil
+
+4. アプリを起動
+   streamlit run app_demo.py
+
+5. ブラウザで http://localhost:8501 が自動的に開きます
+
+
+【Firebase連携版】本格運用
+------------------------------------------
+1. ターミナルを開く
+
+2. このフォルダに移動
+   cd "/Users/chobi/AI制作/有給管理/python_version"
+
+3. セットアップスクリプトを実行（初回のみ）
+   bash setup.sh
+
+4. Firebase設定ファイルを配置（初回のみ）
+   - Firebase Consoleから認証情報をダウンロード
+   - firebase_config.json として保存
+
+5. 仮想環境を有効化
+   source venv/bin/activate
+
+6. アプリを起動
+   streamlit run app.py
+
+
+【アプリの停止方法】
+------------------------------------------
+ターミナルで Ctrl + C を押す
+
+
+【トラブル時】
+------------------------------------------
+エラーが出た場合:
+  pip3 install --upgrade streamlit firebase-admin python-dateutil pandas
+
+データをリセットしたい場合（デモ版）:
+  rm -rf demo_data/
+  streamlit run app_demo.py
+
+
+【詳細情報】
+------------------------------------------
+- QUICKSTART.md : クイックスタートガイド
+- README_PYTHON.md : 詳細ドキュメント
+- MIGRATION_GUIDE.md : React版との比較・移植ガイド
+
+
+【サポート】
+------------------------------------------
+Python バージョン: 3.8以上必要
+ブラウザ: Chrome, Firefox, Safari推奨
+

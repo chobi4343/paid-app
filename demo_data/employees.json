@@ -1,0 +1,88 @@
+[
+  {
+    "id": "emp1",
+    "employeeCode": "E001",
+    "name": "佐藤 太郎",
+    "furigana": "サトウ タロウ",
+    "department": "営業部",
+    "employeeType": "Full-time",
+    "weeklyDays": 5,
+    "dailyHours": 8.0,
+    "joinDate": "2022-10-07",
+    "resignationDate": "",
+    "grants": [
+      {
+        "id": "d1696b70-4379-44d3-82cf-f2a01792b713",
+        "date": "2023-04-07",
+        "days": 10,
+        "reason": "正社員 0.5年勤続"
+      },
+      {
+        "id": "a25f45f3-0a6a-4126-85df-47d28e0dd6e9",
+        "date": "2024-04-07",
+        "days": 11,
+        "reason": "正社員 1.5年勤続"
+      },
+      {
+        "id": "c6ca5d81-532d-4813-b488-a387190f84af",
+        "date": "2025-04-07",
+        "days": 12,
+        "reason": "正社員 2.5年勤続"
+      }
+    ],
+    "takes": []
+  },
+  {
+    "id": "emp2",
+    "employeeCode": "E002",
+    "name": "田中 花子",
+    "furigana": "タナカ ハナコ",
+    "department": "開発部",
+    "employeeType": "Part-time",
+    "weeklyDays": 4,
+    "dailyHours": 6.5,
+    "joinDate": "2025-05-07",
+    "resignationDate": "",
+    "grants": [],
+    "takes": []
+  },
+  {
+    "id": "emp3",
+    "employeeCode": "E003",
+    "name": "山本 次郎",
+    "furigana": "ヤマモト ジロウ",
+    "department": "総務部",
+    "employeeType": "Full-time",
+    "weeklyDays": 5,
+    "dailyHours": 8.0,
+    "joinDate": "2020-10-07",
+    "resignationDate": "2024-10-07",
+    "grants": [
+      {
+        "id": "d08d42ab-8c57-4c3b-b9c7-34439a5ff5fc",
+        "date": "2021-04-07",
+        "days": 10,
+        "reason": "正社員 0.5年勤続"
+      },
+      {
+        "id": "6f63cbcd-e69f-4d63-a020-b6fee39d9ea0",
+        "date": "2022-04-07",
+        "days": 11,
+        "reason": "正社員 1.5年勤続"
+      },
+      {
+        "id": "f3f8617e-4c32-400f-8e57-3eeb921f59fe",
+        "date": "2023-04-07",
+        "days": 12,
+        "reason": "正社員 2.5年勤続"
+      },
+      {
+        "id": "e4c45f25-1bf8-4fd8-bde7-c6a28b2a8530",
+        "date": "2024-04-07",
+        "days": 14,
+        "reason": "正社員 3.5年勤続"
+      }
+    ],
+    "takes": []
+  }
+]
