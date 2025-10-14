@@ -906,16 +906,16 @@ def show_employee_list():
     if filtered_employees:
         # ヘッダー行
         st.markdown("""
-        <div style="background: linear-gradient(180deg, #d4e8f3 0%, #c4dff0 100%); padding: 1rem; border-radius: 0.8rem 0.8rem 0 0; margin-bottom: 0;">
-            <div style="display: grid; grid-template-columns: 0.8fr 1.8fr 1.3fr 1.3fr 1.3fr 1.3fr 0.8fr 0.8fr; gap: 1rem;">
+        <div style="background: linear-gradient(180deg, #d4e8f3 0%, #c4dff0 100%); padding: 0.9rem 1rem; border-radius: 0.8rem 0.8rem 0 0; margin-bottom: 0;">
+            <div style="display: grid; grid-template-columns: 0.7fr 1.6fr 1.1fr 1.4fr 1.2fr 1.2fr 0.9fr 0.9fr; gap: 0.8rem; align-items: center;">
                 <div style="color: #6b8fa8; font-weight: 500; text-align: center;">コード</div>
                 <div style="color: #6b8fa8; font-weight: 500;">名前</div>
                 <div style="color: #6b8fa8; font-weight: 500;">部署</div>
                 <div style="color: #6b8fa8; font-weight: 500;">種別</div>
                 <div style="color: #6b8fa8; font-weight: 500;">入社日</div>
                 <div style="color: #6b8fa8; font-weight: 500;">退社日</div>
-                <div style="color: #6b8fa8; font-weight: 500;">残日数</div>
-                <div style="color: #6b8fa8; font-weight: 500;">操作</div>
+                <div style="color: #6b8fa8; font-weight: 500; text-align: center;">残日数</div>
+                <div style="color: #6b8fa8; font-weight: 500; text-align: center;">操作</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -929,22 +929,22 @@ def show_employee_list():
             bg_color = "rgba(230, 247, 251, 0.25)" if i % 2 == 1 else "#ffffff"
             
             # 1行でデータとボタンを表示
-            cols = st.columns([0.8, 1.8, 1.3, 1.3, 1.3, 1.3, 0.8, 0.8])
+            cols = st.columns([0.7, 1.6, 1.1, 1.4, 1.2, 1.2, 0.9, 0.9])
             
             with cols[0]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0; text-align: center;">{emp.employeeCode}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0; text-align: center;">{emp.employeeCode}</div>', unsafe_allow_html=True)
             with cols[1]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{emp.name}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0;">{emp.name}</div>', unsafe_allow_html=True)
             with cols[2]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{emp.department or "未設定"}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0;">{emp.department or "未設定"}</div>', unsafe_allow_html=True)
             with cols[3]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{emp_type}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0;">{emp_type}</div>', unsafe_allow_html=True)
             with cols[4]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{emp.joinDate or "未設定"}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0;">{emp.joinDate or "未設定"}</div>', unsafe_allow_html=True)
             with cols[5]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{emp.resignationDate or "在籍中"}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0;">{emp.resignationDate or "在籍中"}</div>', unsafe_allow_html=True)
             with cols[6]:
-                st.markdown(f'<div style="color: #2d3748; font-size: 1.25rem; font-weight: 700; padding: 0.5rem 0;">{remaining:.1f}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #2d3748; font-size: 1.25rem; font-weight: 700; padding: 0.6rem 0; text-align: center;">{remaining:.1f}</div>', unsafe_allow_html=True)
             with cols[7]:
                 if st.button("取得", key=f"quick_take_{emp.id}", use_container_width=True):
                     st.session_state.quick_take_employee = emp
@@ -953,7 +953,7 @@ def show_employee_list():
             
             # 行の区切り線
             if i < len(filtered_employees) - 1:
-                st.markdown('<hr style="margin: 0.25rem 0; border: none; border-top: 1px solid rgba(212, 232, 243, 0.4);">', unsafe_allow_html=True)
+                st.markdown('<hr style="margin: 0.3rem 0; border: none; border-top: 1px solid rgba(212, 232, 243, 0.4);">', unsafe_allow_html=True)
         
         # 編集ボタン
         st.write("---")
