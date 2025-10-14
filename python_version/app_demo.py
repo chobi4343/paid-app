@@ -867,26 +867,29 @@ def show_employee_list():
         
         df = pd.DataFrame(table_data)
         
-        # HTMLテーブルとして表示（白背景を確実に適用）
-        html_table = f"""
-        <div style="background-color: #ffffff; border-radius: 0.8rem; overflow: hidden; box-shadow: 0 2px 8px rgba(191, 229, 240, 0.15);">
-            <table style="width: 100%; border-collapse: collapse; background-color: #ffffff;">
-                <thead>
-                    <tr style="background: linear-gradient(180deg, #d4e8f3 0%, #c4dff0 100%);">
-                        {''.join([f'<th style="padding: 1rem; text-align: left; color: #6b8fa8; font-weight: 500; border-bottom: 2px solid #b8d9ed;">{col}</th>' for col in df.columns])}
-                    </tr>
-                </thead>
-                <tbody>
-                    {''.join([
-                        f'<tr style="background-color: {"rgba(230, 247, 251, 0.25)" if i % 2 == 1 else "#ffffff"}; border-bottom: 1px solid rgba(212, 232, 243, 0.4);">' +
-                        ''.join([f'<td style="padding: 0.9rem 1rem; color: #4a5568; background-color: inherit;">{row[col]}</td>' for col in df.columns]) +
-                        '</tr>'
-                        for i, (_, row) in enumerate(df.iterrows())
-                    ])}
-                </tbody>
-            </table>
-        </div>
-        """
+        # HTMLテーブルとして表示（白背景を確実に適用、残日数を目立たせる）
+        html_table = '<div style="background-color: #ffffff; border-radius: 0.8rem; overflow: hidden; box-shadow: 0 2px 8px rgba(191, 229, 240, 0.15);"><table style="width: 100%; border-collapse: collapse; background-color: #ffffff;"><thead><tr style="background: linear-gradient(180deg, #d4e8f3 0%, #c4dff0 100%);">'
+        
+        # ヘッダー
+        for col in df.columns:
+            html_table += f'<th style="padding: 1rem; text-align: left; color: #6b8fa8; font-weight: 500; border-bottom: 2px solid #b8d9ed;">{col}</th>'
+        html_table += '</tr></thead><tbody>'
+        
+        # データ行
+        for i, (_, row) in enumerate(df.iterrows()):
+            bg_color = "rgba(230, 247, 251, 0.25)" if i % 2 == 1 else "#ffffff"
+            html_table += f'<tr style="background-color: {bg_color}; border-bottom: 1px solid rgba(212, 232, 243, 0.4);">'
+            
+            for col in df.columns:
+                if col == '残日数':
+                    # 残日数のセルは大きく・太く
+                    html_table += f'<td style="padding: 0.9rem 1rem; color: #2d3748; background-color: inherit; font-size: 1.25rem; font-weight: 700;">{row[col]}</td>'
+                else:
+                    html_table += f'<td style="padding: 0.9rem 1rem; color: #4a5568; background-color: inherit;">{row[col]}</td>'
+            
+            html_table += '</tr>'
+        
+        html_table += '</tbody></table></div>'
         st.markdown(html_table, unsafe_allow_html=True)
         
         # 編集ボタン
