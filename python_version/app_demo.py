@@ -120,9 +120,15 @@ st.markdown("""
         border: none;
         border-radius: 0.6rem;
         font-weight: 500;
-        padding: 0.7rem 1.8rem;
+        padding: 0.5rem 1rem;
         transition: all 0.2s ease;
         box-shadow: 0 2px 8px rgba(127, 165, 200, 0.2);
+        font-size: 0.8rem;
+        white-space: nowrap;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     .stButton>button:hover:not(:disabled) {
         background-color: #7fb5d4;
@@ -795,8 +801,56 @@ def save_departments():
     return save_json_data(DEPARTMENTS_FILE, data)
 
 
+@st.dialog("有給取得を登録")
+def show_quick_take_dialog():
+    """簡易取得登録ダイアログ"""
+    emp = st.session_state.get('quick_take_employee')
+    if not emp:
+        return
+    
+    st.write(f"**従業員**: {emp.name} ({emp.employeeCode})")
+    
+    take_date = st.date_input("取得日", value=datetime.now(), key="quick_take_date")
+    take_days = st.number_input("取得日数", min_value=0.0, max_value=100.0, value=1.0, step=0.5, key="quick_take_days")
+    take_reason = st.text_input("理由（任意）", value="", key="quick_take_reason")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("キャンセル", use_container_width=True):
+            del st.session_state.quick_take_employee
+            del st.session_state.show_quick_take_dialog
+            st.rerun()
+    with col2:
+        if st.button("登録", use_container_width=True, type="primary"):
+            if take_date and take_days > 0:
+                # 新しい取得を追加
+                new_take = Take(
+                    id=generate_uuid(),
+                    date=take_date.strftime('%Y-%m-%d'),
+                    days=round_to_decimal(take_days),
+                    reason=take_reason or '有給休暇取得'
+                )
+                emp.takes.append(new_take)
+                emp.takes.sort(key=lambda x: x.date)
+                
+                # データベースに保存
+                idx = next(i for i, e in enumerate(st.session_state.employees) if e.id == emp.id)
+                st.session_state.employees[idx] = emp
+                save_employees()
+                
+                # クリーンアップ
+                del st.session_state.quick_take_employee
+                del st.session_state.show_quick_take_dialog
+                st.success(f"{emp.name} さんの有給取得を登録しました")
+                st.rerun()
+
+
 def show_employee_list():
     """従業員一覧画面"""
+    
+    # 簡易取得登録ダイアログ
+    if st.session_state.get('show_quick_take_dialog', False):
+        show_quick_take_dialog()
     
     st.markdown("<div class='main-header'><h1>有給休暇管理システム</h1><p>労働基準法に基づく有給休暇の付与・取得・時効を記録・管理します。</p></div>", unsafe_allow_html=True)
     
@@ -850,47 +904,56 @@ def show_employee_list():
     
     # テーブル表示
     if filtered_employees:
-        table_data = []
-        for emp in filtered_employees:
+        # ヘッダー行
+        st.markdown("""
+        <div style="background: linear-gradient(180deg, #d4e8f3 0%, #c4dff0 100%); padding: 1rem; border-radius: 0.8rem 0.8rem 0 0; margin-bottom: 0;">
+            <div style="display: grid; grid-template-columns: 0.8fr 1.8fr 1.3fr 1.3fr 1.3fr 1.3fr 0.8fr 0.8fr; gap: 1rem;">
+                <div style="color: #6b8fa8; font-weight: 500; text-align: center;">コード</div>
+                <div style="color: #6b8fa8; font-weight: 500;">名前</div>
+                <div style="color: #6b8fa8; font-weight: 500;">部署</div>
+                <div style="color: #6b8fa8; font-weight: 500;">種別</div>
+                <div style="color: #6b8fa8; font-weight: 500;">入社日</div>
+                <div style="color: #6b8fa8; font-weight: 500;">退社日</div>
+                <div style="color: #6b8fa8; font-weight: 500;">残日数</div>
+                <div style="color: #6b8fa8; font-weight: 500;">操作</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # データ行
+        for i, emp in enumerate(filtered_employees):
             remaining = calculate_remaining_days(emp.grants, emp.takes, emp.resignationDate)
             emp_type = f"パート(週{emp.weeklyDays}日)" if emp.employeeType == 'Part-time' else '正社員'
             
-            table_data.append({
-                'コード': emp.employeeCode,
-                '名前': emp.name,
-                '部署': emp.department or '未設定',
-                '種別': emp_type,
-                '入社日': emp.joinDate or '未設定',
-                '退社日': emp.resignationDate or '在籍中',
-                '残日数': f"{remaining:.1f}",
-            })
-        
-        df = pd.DataFrame(table_data)
-        
-        # HTMLテーブルとして表示（白背景を確実に適用、残日数を目立たせる）
-        html_table = '<div style="background-color: #ffffff; border-radius: 0.8rem; overflow: hidden; box-shadow: 0 2px 8px rgba(191, 229, 240, 0.15);"><table style="width: 100%; border-collapse: collapse; background-color: #ffffff;"><thead><tr style="background: linear-gradient(180deg, #d4e8f3 0%, #c4dff0 100%);">'
-        
-        # ヘッダー
-        for col in df.columns:
-            html_table += f'<th style="padding: 1rem; text-align: left; color: #6b8fa8; font-weight: 500; border-bottom: 2px solid #b8d9ed;">{col}</th>'
-        html_table += '</tr></thead><tbody>'
-        
-        # データ行
-        for i, (_, row) in enumerate(df.iterrows()):
+            # 行の背景色
             bg_color = "rgba(230, 247, 251, 0.25)" if i % 2 == 1 else "#ffffff"
-            html_table += f'<tr style="background-color: {bg_color}; border-bottom: 1px solid rgba(212, 232, 243, 0.4);">'
             
-            for col in df.columns:
-                if col == '残日数':
-                    # 残日数のセルは大きく・太く
-                    html_table += f'<td style="padding: 0.9rem 1rem; color: #2d3748; background-color: inherit; font-size: 1.25rem; font-weight: 700;">{row[col]}</td>'
-                else:
-                    html_table += f'<td style="padding: 0.9rem 1rem; color: #4a5568; background-color: inherit;">{row[col]}</td>'
+            # 1行でデータとボタンを表示
+            cols = st.columns([0.8, 1.8, 1.3, 1.3, 1.3, 1.3, 0.8, 0.8])
             
-            html_table += '</tr>'
-        
-        html_table += '</tbody></table></div>'
-        st.markdown(html_table, unsafe_allow_html=True)
+            with cols[0]:
+                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0; text-align: center;">{emp.employeeCode}</div>', unsafe_allow_html=True)
+            with cols[1]:
+                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{emp.name}</div>', unsafe_allow_html=True)
+            with cols[2]:
+                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{emp.department or "未設定"}</div>', unsafe_allow_html=True)
+            with cols[3]:
+                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{emp_type}</div>', unsafe_allow_html=True)
+            with cols[4]:
+                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{emp.joinDate or "未設定"}</div>', unsafe_allow_html=True)
+            with cols[5]:
+                st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{emp.resignationDate or "在籍中"}</div>', unsafe_allow_html=True)
+            with cols[6]:
+                st.markdown(f'<div style="color: #2d3748; font-size: 1.25rem; font-weight: 700; padding: 0.5rem 0;">{remaining:.1f}</div>', unsafe_allow_html=True)
+            with cols[7]:
+                if st.button("取得", key=f"quick_take_{emp.id}", use_container_width=True):
+                    st.session_state.quick_take_employee = emp
+                    st.session_state.show_quick_take_dialog = True
+                    st.rerun()
+            
+            # 行の区切り線
+            if i < len(filtered_employees) - 1:
+                st.markdown('<hr style="margin: 0.25rem 0; border: none; border-top: 1px solid rgba(212, 232, 243, 0.4);">', unsafe_allow_html=True)
         
         # 編集ボタン
         st.write("---")
