@@ -936,15 +936,6 @@ def show_confirmation_dialog(message, action_key):
     # 共通スタイル（繰り返し挿入しても問題なし）
     st.markdown("""
     <style>
-    .confirm-dialog-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.3);
-        z-index: 9999;
-    }
     .confirm-dialog-title {
         color: #666;
         margin-bottom: 10px;
@@ -973,34 +964,38 @@ def show_confirmation_dialog(message, action_key):
         display: flex;
         flex-direction: column;
         gap: 24px;
+        pointer-events: auto;
     }
     form[data-testid="stForm"]:has(.confirm-dialog-marker) > div[data-testid="stFormSubmitButton"] {
         margin: 0;
+        pointer-events: auto;
     }
     form[data-testid="stForm"]:has(.confirm-dialog-marker) div[data-testid="stHorizontalBlock"] {
         gap: 16px;
         justify-content: center;
+        pointer-events: auto;
     }
     form[data-testid="stForm"]:has(.confirm-dialog-marker) div[data-testid="column"] {
         padding: 0 !important;
         display: flex;
         justify-content: center;
+        pointer-events: auto;
     }
     form[data-testid="stForm"]:has(.confirm-dialog-marker) .stFormSubmitButton {
         margin: 0;
+        pointer-events: auto;
     }
     form[data-testid="stForm"]:has(.confirm-dialog-marker) .stButton>button,
     form[data-testid="stForm"]:has(.confirm-dialog-marker) .stFormSubmitButton>button {
         width: 100%;
+        pointer-events: auto;
+        cursor: pointer;
     }
     .confirm-dialog-marker {
         display: none;
     }
     </style>
     """, unsafe_allow_html=True)
-
-    # オーバーレイ背景
-    st.markdown('<div class="confirm-dialog-overlay"></div>', unsafe_allow_html=True)
     
     cancel_clicked = False
     confirm_clicked = False
@@ -1011,9 +1006,9 @@ def show_confirmation_dialog(message, action_key):
         st.markdown(f'<div class="confirm-dialog-message">{message}</div>', unsafe_allow_html=True)
         col_cancel, col_confirm = st.columns(2)
         with col_cancel:
-            cancel_clicked = st.form_submit_button("いいえ", use_container_width=True)
+            cancel_clicked = st.form_submit_button("キャンセル", use_container_width=True)
         with col_confirm:
-            confirm_clicked = st.form_submit_button("はい", use_container_width=True, type="primary")
+            confirm_clicked = st.form_submit_button("OK", use_container_width=True, type="primary")
 
     if cancel_clicked:
         if action_key in st.session_state:
