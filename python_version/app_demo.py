@@ -1515,7 +1515,7 @@ def show_settings():
     st.divider()
     
     # 部署リスト
-    for dept in st.session_state.departments:
+    for i, dept in enumerate(st.session_state.departments):
         employee_count = sum(1 for emp in st.session_state.employees if emp.department == dept.name)
         
         col1, col2, col3 = st.columns([3, 2, 1])
@@ -1533,7 +1533,9 @@ def show_settings():
             else:
                 st.caption("削除不可")
         
-        st.divider()
+        # 最後の項目以外は薄い区切り線を表示
+        if i < len(st.session_state.departments) - 1:
+            st.markdown('<hr style="margin: 0.5rem 0; border: none; border-top: 1px solid rgba(212, 232, 243, 0.4);">', unsafe_allow_html=True)
 
 
 def main():
@@ -1544,7 +1546,6 @@ def main():
     # サイドバー
     with st.sidebar:
         st.title("有給管理")
-        st.caption("デモモード")
         st.divider()
         
         if st.button("従業員一覧", use_container_width=True):
