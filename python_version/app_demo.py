@@ -1116,7 +1116,7 @@ def show_employee_form():
                 st.dataframe(pd.DataFrame(schedule_data), use_container_width=True, hide_index=True)
     
     # 付与履歴
-    with st.expander("付与履歴（手動追加）", expanded=True):
+    with st.expander("有給付与（手動）", expanded=True):
         # 付与追加の確認ダイアログ（モーダル形式）
         if st.session_state.get('show_grant_dialog', False):
             data = st.session_state.get('grant_data', {})
@@ -1158,31 +1158,42 @@ def show_employee_form():
             del st.session_state.dialog_result
             st.rerun()
         
-        # 付与削除の確認ダイアログ
+        # 付与削除の確認ダイアログ（モーダル形式）
         for i in range(len(emp.grants)):
-            if st.session_state.get(f'confirm_del_grant_{i}', False):
+            if st.session_state.get(f'show_del_grant_dialog_{i}', False):
                 data = st.session_state.get('grant_del_data', {})
-                if show_confirmation_dialog(
-                    f"本当に{data['date']}の{data['days']:.1f}日の付与履歴を削除しますか？",
-                    f'confirm_del_grant_{i}'
-                ):
-                    # 実際に削除処理を実行
-                    emp.grants.pop(data['index'])
-                    
-                    # session_stateを更新して残日数計算に反映
-                    st.session_state.selected_employee = emp
-                    
-                    # データベースにも保存
-                    if not is_new:
-                        idx = next((j for j, e in enumerate(st.session_state.employees) if e.id == emp.id), None)
-                        if idx is not None:
-                            st.session_state.employees[idx] = emp
-                            save_employees()
-                    
-                    del st.session_state[f'confirm_del_grant_{i}']
+                show_confirmation_dialog(f"本当に{data['date']}の{data['days']:.1f}日の付与履歴を削除しますか？")
+        
+        # 削除ダイアログの結果を処理
+        for i in range(len(emp.grants)):
+            if st.session_state.get('dialog_result') is True and st.session_state.get(f'show_del_grant_dialog_{i}', False):
+                data = st.session_state.get('grant_del_data', {})
+                # 実際に削除処理を実行
+                emp.grants.pop(data['index'])
+                
+                # session_stateを更新して残日数計算に反映
+                st.session_state.selected_employee = emp
+                
+                # データベースにも保存
+                if not is_new:
+                    idx = next((j for j, e in enumerate(st.session_state.employees) if e.id == emp.id), None)
+                    if idx is not None:
+                        st.session_state.employees[idx] = emp
+                        save_employees()
+                
+                # クリーンアップ
+                del st.session_state[f'show_del_grant_dialog_{i}']
+                del st.session_state.grant_del_data
+                del st.session_state.dialog_result
+                st.success("削除しました")
+                st.rerun()
+            elif st.session_state.get('dialog_result') is False and st.session_state.get(f'show_del_grant_dialog_{i}', False):
+                # キャンセルされた
+                del st.session_state[f'show_del_grant_dialog_{i}']
+                if 'grant_del_data' in st.session_state:
                     del st.session_state.grant_del_data
-                    st.success("削除しました")
-                    st.rerun()
+                del st.session_state.dialog_result
+                st.rerun()
         
         st.write("##### 新しい付与を追加")
         col1, col2, col3, col4 = st.columns([2, 1, 2, 1])
@@ -1216,31 +1227,37 @@ def show_employee_form():
                 expiry_date = datetime.strptime(grant.date, '%Y-%m-%d') + pd.DateOffset(years=2)
                 is_expired = expiry_date.date() < datetime.now().date()
                 
+                # 白いカード形式で表示（削除ボタンも含めて）
                 col1, col2, col3, col4, col5 = st.columns([2, 1, 3, 2, 1])
+                
+                # カードのコンテナとして機能
                 with col1:
-                    st.write(grant.date)
+                    st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{grant.date}</div>', unsafe_allow_html=True)
                 with col2:
-                    st.write(f"**{grant.days:.1f}日**")
+                    st.markdown(f'<div style="color: #4a5568; font-weight: 600; padding: 0.5rem 0;">{grant.days:.1f}日</div>', unsafe_allow_html=True)
                 with col3:
-                    st.write(f"_{grant.reason}_")
+                    st.markdown(f'<div style="color: #6b8fa8; font-style: italic; padding: 0.5rem 0;">{grant.reason}</div>', unsafe_allow_html=True)
                 with col4:
-                    st.write(f"時効日: {expiry_date.strftime('%Y-%m-%d')}")
+                    expiry_text = f'時効日: {expiry_date.strftime("%Y-%m-%d")}'
                     if is_expired:
-                        st.caption("🔴 時効")
+                        expiry_text += ' <span style="color: red;">🔴 時効</span>'
+                    st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{expiry_text}</div>', unsafe_allow_html=True)
                 with col5:
                     if st.button("削除", key=f"del_grant_{i}"):
-                        st.session_state[f'confirm_del_grant_{i}'] = True
+                        st.session_state[f'show_del_grant_dialog_{i}'] = True
                         st.session_state.grant_del_data = {
                             'index': i,
                             'date': grant.date,
                             'days': grant.days
                         }
                         st.rerun()
+                
+                st.markdown('<hr style="margin: 0.5rem 0; border: none; border-top: 1px solid rgba(212, 232, 243, 0.4);">', unsafe_allow_html=True)
         else:
             st.info("付与履歴がありません")
     
     # 取得履歴
-    with st.expander("取得履歴", expanded=True):
+    with st.expander("有給取得履歴", expanded=True):
         # 取得追加の確認ダイアログ（モーダル形式）
         if st.session_state.get('show_take_dialog', False):
             data = st.session_state.get('take_data', {})
@@ -1282,31 +1299,42 @@ def show_employee_form():
             del st.session_state.dialog_result
             st.rerun()
         
-        # 取得削除の確認ダイアログ
+        # 取得削除の確認ダイアログ（モーダル形式）
         for i in range(len(emp.takes)):
-            if st.session_state.get(f'confirm_del_take_{i}', False):
+            if st.session_state.get(f'show_del_take_dialog_{i}', False):
                 data = st.session_state.get('take_del_data', {})
-                if show_confirmation_dialog(
-                    f"本当に{data['date']}の{data['days']:.1f}日の取得履歴を削除しますか？",
-                    f'confirm_del_take_{i}'
-                ):
-                    # 実際に削除処理を実行
-                    emp.takes.pop(data['index'])
-                    
-                    # session_stateを更新して残日数計算に反映
-                    st.session_state.selected_employee = emp
-                    
-                    # データベースにも保存
-                    if not is_new:
-                        idx = next((j for j, e in enumerate(st.session_state.employees) if e.id == emp.id), None)
-                        if idx is not None:
-                            st.session_state.employees[idx] = emp
-                            save_employees()
-                    
-                    del st.session_state[f'confirm_del_take_{i}']
+                show_confirmation_dialog(f"本当に{data['date']}の{data['days']:.1f}日の取得履歴を削除しますか？")
+        
+        # 削除ダイアログの結果を処理
+        for i in range(len(emp.takes)):
+            if st.session_state.get('dialog_result') is True and st.session_state.get(f'show_del_take_dialog_{i}', False):
+                data = st.session_state.get('take_del_data', {})
+                # 実際に削除処理を実行
+                emp.takes.pop(data['index'])
+                
+                # session_stateを更新して残日数計算に反映
+                st.session_state.selected_employee = emp
+                
+                # データベースにも保存
+                if not is_new:
+                    idx = next((j for j, e in enumerate(st.session_state.employees) if e.id == emp.id), None)
+                    if idx is not None:
+                        st.session_state.employees[idx] = emp
+                        save_employees()
+                
+                # クリーンアップ
+                del st.session_state[f'show_del_take_dialog_{i}']
+                del st.session_state.take_del_data
+                del st.session_state.dialog_result
+                st.success("削除しました")
+                st.rerun()
+            elif st.session_state.get('dialog_result') is False and st.session_state.get(f'show_del_take_dialog_{i}', False):
+                # キャンセルされた
+                del st.session_state[f'show_del_take_dialog_{i}']
+                if 'take_del_data' in st.session_state:
                     del st.session_state.take_del_data
-                    st.success("削除しました")
-                    st.rerun()
+                del st.session_state.dialog_result
+                st.rerun()
         
         st.write("##### 新しい取得を追加")
         col1, col2, col3, col4 = st.columns([2, 1, 2, 1])
@@ -1337,24 +1365,62 @@ def show_employee_form():
         
         if emp.takes:
             for i, take in enumerate(emp.takes):
+                # カラム形式で表示（削除ボタンも含めて）
                 col1, col2, col3, col4 = st.columns([2, 1, 4, 1])
+                
                 with col1:
-                    st.write(take.date)
+                    st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{take.date}</div>', unsafe_allow_html=True)
                 with col2:
-                    st.write(f"**-{take.days:.1f}日**")
+                    st.markdown(f'<div style="color: #d32f2f; font-weight: 600; padding: 0.5rem 0;">-{take.days:.1f}日</div>', unsafe_allow_html=True)
                 with col3:
-                    st.write(f"_{take.reason}_")
+                    reason_text = take.reason if take.reason else '（理由なし）'
+                    st.markdown(f'<div style="color: #6b8fa8; font-style: italic; padding: 0.5rem 0;">{reason_text}</div>', unsafe_allow_html=True)
                 with col4:
                     if st.button("削除", key=f"del_take_{i}"):
-                        st.session_state[f'confirm_del_take_{i}'] = True
+                        st.session_state[f'show_del_take_dialog_{i}'] = True
                         st.session_state.take_del_data = {
                             'index': i,
                             'date': take.date,
                             'days': take.days
                         }
                         st.rerun()
+                
+                st.markdown('<hr style="margin: 0.5rem 0; border: none; border-top: 1px solid rgba(212, 232, 243, 0.4);">', unsafe_allow_html=True)
         else:
             st.info("取得履歴がありません")
+    
+    # 従業員削除の確認ダイアログ（モーダル形式）
+    if st.session_state.get('show_delete_employee_dialog', False):
+        show_confirmation_dialog(f"本当に {emp.name} さんを削除しますか？")
+    
+    # ダイアログの結果を処理
+    if st.session_state.get('dialog_result') is True and st.session_state.get('show_delete_employee_dialog', False):
+        # 実際に削除処理を実行
+        st.session_state.employees = [e for e in st.session_state.employees if e.id != emp.id]
+        if save_employees():
+            # クリーンアップ
+            del st.session_state.show_delete_employee_dialog
+            del st.session_state.dialog_result
+            # 元データもクリア
+            if 'original_employee' in st.session_state:
+                del st.session_state.original_employee
+            if 'original_values' in st.session_state:
+                del st.session_state.original_values
+            # 確認状態もクリア
+            keys_to_delete = []
+            for key in st.session_state.keys():
+                if key.startswith('confirm_'):
+                    keys_to_delete.append(key)
+            for key in keys_to_delete:
+                del st.session_state[key]
+            st.session_state.current_view = 'list'
+            st.success("削除しました")
+            st.rerun()
+    elif st.session_state.get('dialog_result') is False and st.session_state.get('show_delete_employee_dialog', False):
+        # キャンセルされた
+        del st.session_state.show_delete_employee_dialog
+        del st.session_state.dialog_result
+        st.rerun()
     
     # 保存ボタン
     st.divider()
@@ -1413,32 +1479,8 @@ def show_employee_form():
     with col3:
         if not is_new:
             if st.button("従業員を削除", use_container_width=True):
-                if 'confirm_delete' not in st.session_state:
-                    st.session_state.confirm_delete = False
-                
-                if st.session_state.confirm_delete:
-                    st.session_state.employees = [e for e in st.session_state.employees if e.id != emp.id]
-                    if save_employees():
-                        st.success("削除しました")
-                        # 元データもクリア
-                        if 'original_employee' in st.session_state:
-                            del st.session_state.original_employee
-                        if 'original_values' in st.session_state:
-                            del st.session_state.original_values
-                        # 確認状態もクリア
-                        keys_to_delete = []
-                        for key in st.session_state.keys():
-                            if key.startswith('confirm_'):
-                                keys_to_delete.append(key)
-                        for key in keys_to_delete:
-                            del st.session_state[key]
-                        st.session_state.current_view = 'list'
-                        st.session_state.confirm_delete = False
-                        st.rerun()
-                else:
-                    st.session_state.confirm_delete = True
-                    st.warning("もう一度クリックすると削除されます")
-                    st.rerun()
+                st.session_state.show_delete_employee_dialog = True
+                st.rerun()
 
 
 def show_settings():
