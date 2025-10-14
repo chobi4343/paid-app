@@ -931,92 +931,78 @@ def has_basic_info_changed(current, original_values):
     )
 
 
-def show_confirmation_dialog(message, action_key):
-    """確認ダイアログを表示"""
-    # 共通スタイル（繰り返し挿入しても問題なし）
+@st.dialog("このページの内容")
+def show_confirmation_dialog(message):
+    """確認ダイアログを表示（モーダル形式）"""
+    # カスタムスタイル
     st.markdown("""
     <style>
-    .confirm-dialog-title {
-        color: #666;
-        margin-bottom: 10px;
-        font-size: 14px;
+    /* ダイアログ全体のスタイル */
+    [data-testid="stModal"] {
+        background-color: rgba(0, 0, 0, 0.4) !important;
     }
-    .confirm-dialog-message {
-        color: #333;
-        margin: 0 0 8px 0;
-        font-size: 16px;
+    [data-testid="stModal"] > div:first-child {
+        background-color: #ffffff;
+        border-radius: 13px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+        padding: 20px;
+        max-width: 400px;
+    }
+    /* メッセージのスタイル */
+    [data-testid="stModal"] p {
+        color: #1a1a1a;
+        font-size: 13px;
+        line-height: 1.5;
+        margin-bottom: 20px;
+    }
+    /* ボタンコンテナ */
+    [data-testid="stModal"] [data-testid="stHorizontalBlock"] {
+        gap: 8px;
+        justify-content: flex-end;
+    }
+    /* キャンセルボタン */
+    [data-testid="stModal"] .stButton>button {
+        border-radius: 6px;
+        padding: 8px 20px;
+        font-size: 13px;
         font-weight: 500;
+        border: 1px solid #d1d1d6;
+        background-color: #ffffff;
+        color: #007aff;
+        min-width: 80px;
     }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 10001;
-        width: auto;
-        background-color: #fff;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        padding: 32px 40px;
-        min-width: 400px;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-        pointer-events: auto;
+    [data-testid="stModal"] .stButton>button:hover {
+        background-color: #f5f5f5;
+        border-color: #c7c7cc;
     }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) > div[data-testid="stFormSubmitButton"] {
-        margin: 0;
-        pointer-events: auto;
+    /* OKボタン */
+    [data-testid="stModal"] button[kind="primary"] {
+        background-color: #007aff !important;
+        color: #ffffff !important;
+        border: none !important;
+        font-weight: 600 !important;
+        border-radius: 6px !important;
+        padding: 8px 20px !important;
+        font-size: 13px !important;
+        min-width: 80px !important;
     }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) div[data-testid="stHorizontalBlock"] {
-        gap: 16px;
-        justify-content: center;
-        pointer-events: auto;
-    }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) div[data-testid="column"] {
-        padding: 0 !important;
-        display: flex;
-        justify-content: center;
-        pointer-events: auto;
-    }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) .stFormSubmitButton {
-        margin: 0;
-        pointer-events: auto;
-    }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) .stButton>button,
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) .stFormSubmitButton>button {
-        width: 100%;
-        pointer-events: auto;
-        cursor: pointer;
-    }
-    .confirm-dialog-marker {
-        display: none;
+    [data-testid="stModal"] button[kind="primary"]:hover {
+        background-color: #0051d5 !important;
     }
     </style>
     """, unsafe_allow_html=True)
     
-    cancel_clicked = False
-    confirm_clicked = False
-    form_key = f"confirm_form_{action_key}"
-    with st.form(key=form_key):
-        st.markdown('<div class="confirm-dialog-marker"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="confirm-dialog-title">このページの内容</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="confirm-dialog-message">{message}</div>', unsafe_allow_html=True)
-        col_cancel, col_confirm = st.columns(2)
-        with col_cancel:
-            cancel_clicked = st.form_submit_button("キャンセル", use_container_width=True)
-        with col_confirm:
-            confirm_clicked = st.form_submit_button("OK", use_container_width=True, type="primary")
-
-    if cancel_clicked:
-        if action_key in st.session_state:
-            del st.session_state[action_key]
-        st.rerun()
-    if confirm_clicked:
-        return True
-    return False
+    st.write(message)
+    
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("キャンセル", use_container_width=True, key="modal_cancel"):
+            st.session_state.dialog_result = False
+            st.rerun()
+    with col2:
+        if st.button("OK", use_container_width=True, type="primary", key="modal_ok"):
+            st.session_state.dialog_result = True
+            st.rerun()
 
 
 def show_employee_form():
@@ -1131,36 +1117,46 @@ def show_employee_form():
     
     # 付与履歴
     with st.expander("付与履歴（手動追加）", expanded=True):
-        # 付与追加の確認ダイアログ
-        if st.session_state.get('confirm_add_grant', False):
+        # 付与追加の確認ダイアログ（モーダル形式）
+        if st.session_state.get('show_grant_dialog', False):
             data = st.session_state.get('grant_data', {})
-            if show_confirmation_dialog(
-                f"{data['date'].strftime('%Y-%m-%d')}に{data['days']:.1f}日の有給付与を追加しますか？",
-                'confirm_add_grant'
-            ):
-                # 実際に追加処理を実行
-                new_grant = Grant(
-                    id=generate_uuid(),
-                    date=data['date'].strftime('%Y-%m-%d'),
-                    days=round_to_decimal(data['days']),
-                    reason=data['reason'] or '手動付与'
-                )
-                emp.grants.append(new_grant)
-                emp.grants.sort(key=lambda x: x.date)
-                
-                # session_stateを更新して残日数計算に反映
-                st.session_state.selected_employee = emp
-                
-                # データベースにも保存
-                if not is_new:
-                    idx = next(i for i, e in enumerate(st.session_state.employees) if e.id == emp.id)
-                    st.session_state.employees[idx] = emp
-                    save_employees()
-                
-                del st.session_state.confirm_add_grant
+            show_confirmation_dialog(f"{data['date'].strftime('%Y-%m-%d')}に{data['days']:.1f}日の有給付与を追加しますか？")
+        
+        # ダイアログの結果を処理
+        if st.session_state.get('dialog_result') is True and st.session_state.get('show_grant_dialog', False):
+            data = st.session_state.get('grant_data', {})
+            # 実際に追加処理を実行
+            new_grant = Grant(
+                id=generate_uuid(),
+                date=data['date'].strftime('%Y-%m-%d'),
+                days=round_to_decimal(data['days']),
+                reason=data['reason'] or '手動付与'
+            )
+            emp.grants.append(new_grant)
+            emp.grants.sort(key=lambda x: x.date)
+            
+            # session_stateを更新して残日数計算に反映
+            st.session_state.selected_employee = emp
+            
+            # データベースにも保存
+            if not is_new:
+                idx = next(i for i, e in enumerate(st.session_state.employees) if e.id == emp.id)
+                st.session_state.employees[idx] = emp
+                save_employees()
+            
+            # クリーンアップ
+            del st.session_state.show_grant_dialog
+            del st.session_state.grant_data
+            del st.session_state.dialog_result
+            st.success("付与を追加しました")
+            st.rerun()
+        elif st.session_state.get('dialog_result') is False and st.session_state.get('show_grant_dialog', False):
+            # キャンセルされた
+            del st.session_state.show_grant_dialog
+            if 'grant_data' in st.session_state:
                 del st.session_state.grant_data
-                st.success("付与を追加しました")
-                st.rerun()
+            del st.session_state.dialog_result
+            st.rerun()
         
         # 付与削除の確認ダイアログ
         for i in range(len(emp.grants)):
@@ -1202,7 +1198,7 @@ def show_employee_form():
             st.write("")
             if st.button("付与追加", type="primary", key="add_grant_btn"):
                 if grant_date and grant_days > 0:
-                    st.session_state.confirm_add_grant = True
+                    st.session_state.show_grant_dialog = True
                     st.session_state.grant_data = {
                         'date': grant_date,
                         'days': grant_days,
@@ -1245,36 +1241,46 @@ def show_employee_form():
     
     # 取得履歴
     with st.expander("取得履歴", expanded=True):
-        # 取得追加の確認ダイアログ
-        if st.session_state.get('confirm_add_take', False):
+        # 取得追加の確認ダイアログ（モーダル形式）
+        if st.session_state.get('show_take_dialog', False):
             data = st.session_state.get('take_data', {})
-            if show_confirmation_dialog(
-                f"{data['date'].strftime('%Y-%m-%d')}に{data['days']:.1f}日の有給取得を追加しますか？",
-                'confirm_add_take'
-            ):
-                # 実際に追加処理を実行
-                new_take = Take(
-                    id=generate_uuid(),
-                    date=data['date'].strftime('%Y-%m-%d'),
-                    days=round_to_decimal(data['days']),
-                    reason=data['reason'] or '有給休暇取得'
-                )
-                emp.takes.append(new_take)
-                emp.takes.sort(key=lambda x: x.date)
-                
-                # session_stateを更新して残日数計算に反映
-                st.session_state.selected_employee = emp
-                
-                # データベースにも保存
-                if not is_new:
-                    idx = next(i for i, e in enumerate(st.session_state.employees) if e.id == emp.id)
-                    st.session_state.employees[idx] = emp
-                    save_employees()
-                
-                del st.session_state.confirm_add_take
+            show_confirmation_dialog(f"{data['date'].strftime('%Y-%m-%d')}に{data['days']:.1f}日の有給取得を追加しますか？")
+        
+        # ダイアログの結果を処理
+        if st.session_state.get('dialog_result') is True and st.session_state.get('show_take_dialog', False):
+            data = st.session_state.get('take_data', {})
+            # 実際に追加処理を実行
+            new_take = Take(
+                id=generate_uuid(),
+                date=data['date'].strftime('%Y-%m-%d'),
+                days=round_to_decimal(data['days']),
+                reason=data['reason'] or '有給休暇取得'
+            )
+            emp.takes.append(new_take)
+            emp.takes.sort(key=lambda x: x.date)
+            
+            # session_stateを更新して残日数計算に反映
+            st.session_state.selected_employee = emp
+            
+            # データベースにも保存
+            if not is_new:
+                idx = next(i for i, e in enumerate(st.session_state.employees) if e.id == emp.id)
+                st.session_state.employees[idx] = emp
+                save_employees()
+            
+            # クリーンアップ
+            del st.session_state.show_take_dialog
+            del st.session_state.take_data
+            del st.session_state.dialog_result
+            st.success("取得を追加しました")
+            st.rerun()
+        elif st.session_state.get('dialog_result') is False and st.session_state.get('show_take_dialog', False):
+            # キャンセルされた
+            del st.session_state.show_take_dialog
+            if 'take_data' in st.session_state:
                 del st.session_state.take_data
-                st.success("取得を追加しました")
-                st.rerun()
+            del st.session_state.dialog_result
+            st.rerun()
         
         # 取得削除の確認ダイアログ
         for i in range(len(emp.takes)):
@@ -1316,7 +1322,7 @@ def show_employee_form():
             st.write("")
             if st.button("取得追加", type="primary", key="add_take_btn"):
                 if take_date and take_days > 0:
-                    st.session_state.confirm_add_take = True
+                    st.session_state.show_take_dialog = True
                     st.session_state.take_data = {
                         'date': take_date,
                         'days': take_days,
