@@ -20,6 +20,7 @@ from utils.calculations import (
 
 # データファイルのパス
 DATA_DIR = "demo_data"
+BACKUP_DIR = os.path.join(DATA_DIR, "backups")
 EMPLOYEES_FILE = os.path.join(DATA_DIR, "employees.json")
 DEPARTMENTS_FILE = os.path.join(DATA_DIR, "departments.json")
 
@@ -669,6 +670,8 @@ def init_data_dir():
     """データディレクトリを初期化"""
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
+    if not os.path.exists(BACKUP_DIR):
+        os.makedirs(BACKUP_DIR)
 
 
 def load_json_data(file_path: str, default_value: list) -> list:
@@ -683,9 +686,43 @@ def load_json_data(file_path: str, default_value: list) -> list:
     return default_value
 
 
-def save_json_data(file_path: str, data: list):
-    """JSONファイルにデータを保存"""
+def create_backup(file_path: str):
+    """バックアップファイルを作成（最新5件を保持）"""
     try:
+        if not os.path.exists(file_path):
+            return
+        
+        # ファイル名からバックアップ名を生成
+        filename = os.path.basename(file_path)
+        name_without_ext = os.path.splitext(filename)[0]
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f"{name_without_ext}_backup_{timestamp}.json"
+        backup_path = os.path.join(BACKUP_DIR, backup_filename)
+        
+        # バックアップを作成
+        with open(file_path, 'r', encoding='utf-8') as src:
+            data = json.load(src)
+        with open(backup_path, 'w', encoding='utf-8') as dst:
+            json.dump(data, dst, ensure_ascii=False, indent=2)
+        
+        # 古いバックアップを削除（最新5件のみ保持）
+        backup_files = sorted(
+            [f for f in os.listdir(BACKUP_DIR) if f.startswith(name_without_ext) and f.endswith('.json')],
+            reverse=True
+        )
+        for old_backup in backup_files[5:]:
+            os.remove(os.path.join(BACKUP_DIR, old_backup))
+        
+    except Exception as e:
+        print(f"バックアップエラー: {e}")
+
+
+def save_json_data(file_path: str, data: list):
+    """JSONファイルにデータを保存（自動バックアップ付き）"""
+    try:
+        # 保存前にバックアップを作成
+        create_backup(file_path)
+        
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return True
@@ -799,6 +836,23 @@ def save_departments():
     """部署データを保存"""
     data = [dept.to_dict() for dept in st.session_state.departments]
     return save_json_data(DEPARTMENTS_FILE, data)
+
+
+def import_all_data(data: dict):
+    """エクスポートされたデータをインポート"""
+    try:
+        if 'employees' in data:
+            st.session_state.employees = [Employee.from_dict(e) for e in data['employees']]
+            save_employees()
+        
+        if 'departments' in data:
+            st.session_state.departments = [Department.from_dict(d) for d in data['departments']]
+            save_departments()
+        
+        return True
+    except Exception as e:
+        st.error(f"データインポートエラー: {e}")
+        return False
 
 
 @st.dialog("有給取得を登録")
@@ -1633,6 +1687,54 @@ def main():
             load_data()
             st.success("リセットしました")
             st.rerun()
+        
+        st.divider()
+        
+        # データインポート（バックアップファイル選択形式）
+        st.write("**📤 バックアップから復元**")
+        
+        # バックアップファイル一覧を取得
+        backup_files = []
+        if os.path.exists(BACKUP_DIR):
+            all_backups = [f for f in os.listdir(BACKUP_DIR) if f.endswith('.json')]
+            # タイムスタンプでソート（新しい順）
+            all_backups.sort(reverse=True)
+            backup_files = all_backups
+        
+        if backup_files:
+            selected_backup = st.selectbox(
+                "復元するバックアップを選択",
+                ['選択してください'] + backup_files,
+                key="backup_select"
+            )
+            
+            if st.button("復元実行", use_container_width=True, disabled=(selected_backup == '選択してください')):
+                try:
+                    backup_path = os.path.join(BACKUP_DIR, selected_backup)
+                    with open(backup_path, 'r', encoding='utf-8') as f:
+                        backup_data = json.load(f)
+                    
+                    # 従業員データか部署データかを判定して復元
+                    if 'employees' in selected_backup:
+                        # 従業員データのバックアップ
+                        st.session_state.employees = [Employee.from_dict(e) for e in backup_data]
+                        save_employees()
+                        st.success("従業員データを復元しました")
+                    elif 'departments' in selected_backup:
+                        # 部署データのバックアップ
+                        st.session_state.departments = [Department.from_dict(d) for d in backup_data]
+                        save_departments()
+                        st.success("部署データを復元しました")
+                    else:
+                        # 全データのエクスポート形式
+                        if import_all_data(backup_data):
+                            st.success("すべてのデータを復元しました")
+                    
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"復元エラー: {e}")
+        else:
+            st.info("バックアップファイルがありません")
         
         st.divider()
         st.caption(f"従業員: {len(st.session_state.get('employees', []))}名")
