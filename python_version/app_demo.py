@@ -1181,8 +1181,8 @@ def show_employee_form():
     
     st.write("")
     
-    # 基本情報
-    with st.expander("基本情報", expanded=False):
+    # 基本情報（新規登録時は開く）
+    with st.expander("基本情報", expanded=is_new):
         col1, col2 = st.columns(2)
         with col1:
             emp.employeeCode = st.text_input("従業員コード（必須）*", value=emp.employeeCode)
@@ -1235,8 +1235,8 @@ def show_employee_form():
                 import pandas as pd
                 st.dataframe(pd.DataFrame(schedule_data), use_container_width=True, hide_index=True)
     
-    # 付与履歴
-    with st.expander("有給付与（手動）", expanded=False):
+    # 付与履歴（新規登録時は開く）
+    with st.expander("有給付与（手動）", expanded=is_new):
         # 付与追加の確認ダイアログ（モーダル形式）
         if st.session_state.get('show_grant_dialog', False):
             data = st.session_state.get('grant_data', {})
