@@ -1128,7 +1128,7 @@ def show_employee_form():
     st.write("")
     
     # 基本情報
-    with st.expander("基本情報", expanded=True):
+    with st.expander("基本情報", expanded=False):
         col1, col2 = st.columns(2)
         with col1:
             emp.employeeCode = st.text_input("従業員コード（必須）*", value=emp.employeeCode)
@@ -1182,7 +1182,7 @@ def show_employee_form():
                 st.dataframe(pd.DataFrame(schedule_data), use_container_width=True, hide_index=True)
     
     # 付与履歴
-    with st.expander("有給付与（手動）", expanded=True):
+    with st.expander("有給付与（手動）", expanded=False):
         # 付与追加の確認ダイアログ（モーダル形式）
         if st.session_state.get('show_grant_dialog', False):
             data = st.session_state.get('grant_data', {})
@@ -1412,7 +1412,7 @@ def show_employee_form():
         with col3:
             take_reason = st.text_input("理由", value="", key="take_reason_input")
         with col4:
-            st.write("")
+            st.markdown('<div style="height: 2px;"></div>', unsafe_allow_html=True)
             st.write("")
             if st.button("取得追加", type="primary", key="add_take_btn"):
                 if take_date and take_days > 0:
