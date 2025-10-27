@@ -858,11 +858,108 @@ def import_all_data(data: dict):
 @st.dialog("有給取得を登録")
 def show_quick_take_dialog():
     """簡易取得登録ダイアログ"""
+    # ダイアログ内のスタイル設定
+    st.markdown("""
+    <style>
+    /* ダイアログのタイトル */
+    [data-testid="stModal"] h1,
+    [data-testid="stModal"] h2,
+    [data-testid="stModal"] h3,
+    [data-testid="stModal"] [data-testid="stModalHeading"],
+    [role="dialog"] h1,
+    [role="dialog"] h2,
+    [role="dialog"] h3 {
+        color: #ffffff !important;
+    }
+    
+    /* ダイアログ内のラベルとテキスト */
+    [data-testid="stModal"] label,
+    [data-testid="stModal"] .stTextInput label,
+    [data-testid="stModal"] .stNumberInput label,
+    [data-testid="stModal"] .stDateInput label,
+    [data-testid="stModal"] p,
+    [data-testid="stModal"] span,
+    [role="dialog"] label,
+    [role="dialog"] p,
+    [role="dialog"] span {
+        color: #ffffff !important;
+    }
+    
+    /* ダイアログの背景 */
+    [data-testid="stModal"] > div:first-child,
+    [role="dialog"] {
+        background-color: #2c3e50 !important;
+        border-radius: 13px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* ダイアログの入力フィールド */
+    [data-testid="stModal"] input,
+    [data-testid="stModal"] [data-baseweb="input"],
+    [role="dialog"] input {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        color: #ffffff !important;
+    }
+    
+    [data-testid="stModal"] input:focus,
+    [role="dialog"] input:focus {
+        border-color: #7fb5d4 !important;
+        background-color: rgba(255, 255, 255, 0.15) !important;
+    }
+    
+    /* ダイアログのボタン */
+    [data-testid="stModal"] .stButton > button,
+    [role="dialog"] button {
+        background-color: #89b4d6 !important;
+        color: #ffffff !important;
+        border: none !important;
+    }
+    
+    [data-testid="stModal"] .stButton > button:hover,
+    [role="dialog"] button:hover {
+        background-color: #7fb5d4 !important;
+    }
+    
+    /* プライマリボタン */
+    [data-testid="stModal"] button[kind="primary"],
+    [role="dialog"] button[kind="primary"] {
+        background-color: #7fb5d4 !important;
+        color: #ffffff !important;
+    }
+    
+    [data-testid="stModal"] button[kind="primary"]:hover,
+    [role="dialog"] button[kind="primary"]:hover {
+        background-color: #6da8c9 !important;
+    }
+    
+    /* 数値入力の増減ボタン */
+    [data-testid="stModal"] .stNumberInput button {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+    }
+    
+    [data-testid="stModal"] .stNumberInput button:hover {
+        background-color: rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* セレクトボックス */
+    [data-testid="stModal"] [data-baseweb="select"] {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    [data-testid="stModal"] [data-baseweb="select"] > div {
+        color: #ffffff !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     emp = st.session_state.get('quick_take_employee')
     if not emp:
         return
     
-    st.write(f"**従業員**: {emp.name} ({emp.employeeCode})")
+    st.markdown(f"<p style='color: #ffffff;'><strong>従業員</strong>: {emp.name} ({emp.employeeCode})</p>", unsafe_allow_html=True)
     
     take_date = st.date_input("取得日", value=datetime.now(), key="quick_take_date")
     take_days = st.number_input("取得日数", min_value=0.0, max_value=100.0, value=1.0, step=0.5, key="quick_take_days")
@@ -1062,15 +1159,22 @@ def show_confirmation_dialog(message):
         background-color: rgba(0, 0, 0, 0.4) !important;
     }
     [data-testid="stModal"] > div:first-child {
-        background-color: #ffffff;
+        background-color: #2c3e50;
         border-radius: 13px;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
         padding: 20px;
         max-width: 400px;
     }
+    /* ダイアログのタイトル */
+    [data-testid="stModal"] h1,
+    [data-testid="stModal"] h2,
+    [data-testid="stModal"] h3,
+    [data-testid="stModal"] [data-testid="stModalHeading"] {
+        color: #ffffff !important;
+    }
     /* メッセージのスタイル */
     [data-testid="stModal"] p {
-        color: #1a1a1a;
+        color: #ffffff;
         font-size: 13px;
         line-height: 1.5;
         margin-bottom: 20px;
@@ -1086,18 +1190,18 @@ def show_confirmation_dialog(message):
         padding: 8px 20px;
         font-size: 13px;
         font-weight: 500;
-        border: 1px solid #d1d1d6;
-        background-color: #ffffff;
-        color: #007aff;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
         min-width: 80px;
     }
     [data-testid="stModal"] .stButton>button:hover {
-        background-color: #f5f5f5;
-        border-color: #c7c7cc;
+        background-color: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.4);
     }
     /* OKボタン */
     [data-testid="stModal"] button[kind="primary"] {
-        background-color: #007aff !important;
+        background-color: #7fb5d4 !important;
         color: #ffffff !important;
         border: none !important;
         font-weight: 600 !important;
@@ -1107,7 +1211,11 @@ def show_confirmation_dialog(message):
         min-width: 80px !important;
     }
     [data-testid="stModal"] button[kind="primary"]:hover {
-        background-color: #0051d5 !important;
+        background-color: #6da8c9 !important;
+    }
+    /* ダイアログ内のラベル */
+    [data-testid="stModal"] label {
+        color: #ffffff !important;
     }
     </style>
     """, unsafe_allow_html=True)
