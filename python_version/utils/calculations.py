@@ -202,7 +202,24 @@ def calculate_remaining_days(
         })
     takes_sorted.sort(key=lambda x: x['date'])
     
-    # FIFO方式で消化
+    # 時効を先に適用（取得処理の前に時効済みの付与を除外）
+    # 退社日がある場合は退社日を基準に、ない場合は今日を基準に時効を判定
+    check_date = resignation_date if resignation_date else today
+    valid_grants = []
+    for grant in grant_stack:
+        expiry_date = grant['grantDate'] + relativedelta(years=2)
+        # 退社日がある場合：退社日と時効日の早い方を基準に判定
+        if resignation_date:
+            effective_expiry_date = min(expiry_date, resignation_date)
+        else:
+            effective_expiry_date = expiry_date
+        
+        if check_date < effective_expiry_date:
+            # 時効前かつ退社前: 有効な付与として保持
+            valid_grants.append(grant)
+        # else: 時効後または退社後は失効（除外）
+    
+    # 有効な付与のみでFIFO方式で消化
     for take in takes_sorted:
         take_date = take['date']
         
@@ -212,7 +229,7 @@ def calculate_remaining_days(
         
         units_to_consume = take['units']
         
-        for grant in grant_stack:
+        for grant in valid_grants:
             if grant['remainingUnits'] > 0:
                 consumed_units = min(units_to_consume, grant['remainingUnits'])
                 grant['remainingUnits'] -= consumed_units
@@ -221,17 +238,10 @@ def calculate_remaining_days(
                 if units_to_consume <= 0:
                     break
     
-    # 最終残高と時効の適用
+    # 最終残高を計算
     final_remaining_units = 0
-    check_date = resignation_date if resignation_date else today
-    
-    for grant in grant_stack:
-        expiry_date = grant['grantDate'] + relativedelta(years=2)
-        
-        if check_date < expiry_date:
-            # 時効前: 残っている分を最終残高に加算
-            final_remaining_units += grant['remainingUnits']
-        # else: 時効後は失効
+    for grant in valid_grants:
+        final_remaining_units += grant['remainingUnits']
     
     # 最終結果を日数に戻して丸めて返す
     return round_to_decimal(units_to_days(final_remaining_units))

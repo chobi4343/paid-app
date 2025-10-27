@@ -1,0 +1,126 @@
+{
+  "employees": [
+    {
+      "id": "emp1",
+      "employeeCode": "E001",
+      "name": "佐藤 太郎",
+      "furigana": "サトウ タロウ",
+      "department": "営業部",
+      "employeeType": "Full-time",
+      "weeklyDays": 5,
+      "dailyHours": 8.0,
+      "joinDate": "2022-10-27",
+      "resignationDate": "",
+      "grants": [
+        {
+          "id": "d6930b2d-018a-4b30-9fd2-8560747c3747",
+          "date": "2023-04-27",
+          "days": 10,
+          "reason": "正社員 0.5年勤続"
+        },
+        {
+          "id": "edf34295-0593-461c-ac53-3421385e708e",
+          "date": "2024-04-27",
+          "days": 11,
+          "reason": "正社員 1.5年勤続"
+        },
+        {
+          "id": "ab101448-f1a0-47e0-951d-3db403df20b9",
+          "date": "2025-04-27",
+          "days": 12,
+          "reason": "正社員 2.5年勤続"
+        }
+      ],
+      "takes": [
+        {
+          "id": "4296a439-0c18-4c19-96e4-6629708cf8df",
+          "date": "2025-10-27",
+          "days": 1.0,
+          "reason": "有給休暇取得"
+        },
+        {
+          "id": "bbb0f3cf-7f7d-4af9-80d7-c6933cfc2151",
+          "date": "2025-10-27",
+          "days": 2.0,
+          "reason": "追加取得"
+        }
+      ]
+    },
+    {
+      "id": "emp2",
+      "employeeCode": "E002",
+      "name": "田中 花子",
+      "furigana": "タナカ ハナコ",
+      "department": "開発部",
+      "employeeType": "Part-time",
+      "weeklyDays": 4,
+      "dailyHours": 6.5,
+      "joinDate": "2025-05-27",
+      "resignationDate": "",
+      "grants": [],
+      "takes": []
+    },
+    {
+      "id": "emp3",
+      "employeeCode": "E003",
+      "name": "山本 次郎",
+      "furigana": "ヤマモト ジロウ",
+      "department": "総務部",
+      "employeeType": "Full-time",
+      "weeklyDays": 5,
+      "dailyHours": 8.0,
+      "joinDate": "2020-10-27",
+      "resignationDate": "2024-10-27",
+      "grants": [
+        {
+          "id": "5b4d4ea4-12da-49a7-8981-43ac5b109a43",
+          "date": "2021-04-27",
+          "days": 10,
+          "reason": "正社員 0.5年勤続"
+        },
+        {
+          "id": "8a143757-37ef-4e7f-99fb-da1bf36b324e",
+          "date": "2022-04-27",
+          "days": 11,
+          "reason": "正社員 1.5年勤続"
+        },
+        {
+          "id": "266faf86-6d9c-4044-8732-2867c86ae55e",
+          "date": "2023-04-27",
+          "days": 12,
+          "reason": "正社員 2.5年勤続"
+        },
+        {
+          "id": "53edbd34-b9bd-4824-ac68-a0fa5ee454c5",
+          "date": "2024-04-27",
+          "days": 14,
+          "reason": "正社員 3.5年勤続"
+        }
+      ],
+      "takes": []
+    }
+  ],
+  "departments": [
+    {
+      "id": "dept1",
+      "name": "営業部",
+      "createdAt": "2025-10-27T21:48:23.095801"
+    },
+    {
+      "id": "dept2",
+      "name": "開発部",
+      "createdAt": "2025-10-27T21:48:23.095803"
+    },
+    {
+      "id": "dept3",
+      "name": "総務部",
+      "createdAt": "2025-10-27T21:48:23.095804"
+    },
+    {
+      "id": "dept4",
+      "name": "経理部",
+      "createdAt": "2025-10-27T21:48:23.095805"
+    }
+  ],
+  "exported_at": "2025-10-27T21:59:50.062289"
+}

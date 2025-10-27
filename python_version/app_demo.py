@@ -20,6 +20,7 @@ from utils.calculations import (
 
 # データファイルのパス
 DATA_DIR = "demo_data"
+BACKUP_DIR = "@backups"
 EMPLOYEES_FILE = os.path.join(DATA_DIR, "employees.json")
 DEPARTMENTS_FILE = os.path.join(DATA_DIR, "departments.json")
 
@@ -120,9 +121,15 @@ st.markdown("""
         border: none;
         border-radius: 0.6rem;
         font-weight: 500;
-        padding: 0.7rem 1.8rem;
+        padding: 0.5rem 1rem;
         transition: all 0.2s ease;
         box-shadow: 0 2px 8px rgba(127, 165, 200, 0.2);
+        font-size: 0.8rem;
+        white-space: nowrap;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     .stButton>button:hover:not(:disabled) {
         background-color: #7fb5d4;
@@ -663,6 +670,8 @@ def init_data_dir():
     """データディレクトリを初期化"""
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
+    if not os.path.exists(BACKUP_DIR):
+        os.makedirs(BACKUP_DIR)
 
 
 def load_json_data(file_path: str, default_value: list) -> list:
@@ -677,9 +686,50 @@ def load_json_data(file_path: str, default_value: list) -> list:
     return default_value
 
 
-def save_json_data(file_path: str, data: list):
-    """JSONファイルにデータを保存"""
+def create_backup(file_path: str):
+    """バックアップファイルを作成（最新5件を保持）"""
     try:
+        if not os.path.exists(file_path):
+            return
+        
+        # @backupsディレクトリが存在しない場合は作成
+        if not os.path.exists(BACKUP_DIR):
+            os.makedirs(BACKUP_DIR)
+        
+        # ファイル名からバックアップ名を生成
+        filename = os.path.basename(file_path)
+        name_without_ext = os.path.splitext(filename)[0]
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f"{name_without_ext}_backup_{timestamp}.json"
+        backup_path = os.path.join(BACKUP_DIR, backup_filename)
+        
+        # バックアップを作成
+        with open(file_path, 'r', encoding='utf-8') as src:
+            data = json.load(src)
+        with open(backup_path, 'w', encoding='utf-8') as dst:
+            json.dump(data, dst, ensure_ascii=False, indent=2)
+        
+        # 古いバックアップを削除（最新5件のみ保持）
+        if os.path.exists(BACKUP_DIR):
+            backup_files = sorted(
+                [f for f in os.listdir(BACKUP_DIR) if f.startswith(name_without_ext) and f.endswith('.json')],
+                reverse=True
+            )
+            for old_backup in backup_files[5:]:
+                old_backup_path = os.path.join(BACKUP_DIR, old_backup)
+                if os.path.exists(old_backup_path):
+                    os.remove(old_backup_path)
+        
+    except Exception as e:
+        print(f"バックアップエラー: {e}")
+
+
+def save_json_data(file_path: str, data: list):
+    """JSONファイルにデータを保存（自動バックアップ付き）"""
+    try:
+        # 保存前にバックアップを作成
+        create_backup(file_path)
+        
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return True
@@ -777,7 +827,13 @@ if 'selected_employee' not in st.session_state:
 def load_data():
     """データを読み込む"""
     emp_data = load_json_data(EMPLOYEES_FILE, [])
-    st.session_state.employees = [Employee.from_dict(e) for e in emp_data]
+    # 従業員データを読み込み、法定付与を自動追加
+    employees = []
+    for e in emp_data:
+        emp = Employee.from_dict(e)
+        emp = auto_populate_grants(emp)  # 法定付与を自動追加
+        employees.append(emp)
+    st.session_state.employees = employees
     
     dept_data = load_json_data(DEPARTMENTS_FILE, [])
     st.session_state.departments = [Department.from_dict(d) for d in dept_data]
@@ -795,8 +851,314 @@ def save_departments():
     return save_json_data(DEPARTMENTS_FILE, data)
 
 
+def import_all_data(data: dict):
+    """エクスポートされたデータをインポート"""
+    try:
+        if 'employees' in data:
+            st.session_state.employees = [Employee.from_dict(e) for e in data['employees']]
+            save_employees()
+        
+        if 'departments' in data:
+            st.session_state.departments = [Department.from_dict(d) for d in data['departments']]
+            save_departments()
+        
+        return True
+    except Exception as e:
+        st.error(f"データインポートエラー: {e}")
+        return False
+
+
+@st.dialog("有給取得を登録")
+def show_quick_take_dialog():
+    """簡易取得登録ダイアログ"""
+    # ダイアログ内のスタイル設定
+    st.markdown("""
+    <style>
+    /* ダイアログのタイトル */
+    [data-testid="stModal"] h1,
+    [data-testid="stModal"] h2,
+    [data-testid="stModal"] h3,
+    [data-testid="stModal"] [data-testid="stModalHeading"],
+    [role="dialog"] h1,
+    [role="dialog"] h2,
+    [role="dialog"] h3 {
+        color: #ffffff !important;
+    }
+    
+    /* ダイアログ内のラベルとテキスト */
+    [data-testid="stModal"] label,
+    [data-testid="stModal"] .stTextInput label,
+    [data-testid="stModal"] .stNumberInput label,
+    [data-testid="stModal"] .stDateInput label,
+    [data-testid="stModal"] p,
+    [data-testid="stModal"] span,
+    [role="dialog"] label,
+    [role="dialog"] p,
+    [role="dialog"] span {
+        color: #ffffff !important;
+    }
+    
+    /* ダイアログの背景 */
+    [data-testid="stModal"] > div:first-child,
+    [role="dialog"] {
+        background-color: #2c3e50 !important;
+        border-radius: 13px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* ダイアログの入力フィールド */
+    [data-testid="stModal"] input,
+    [data-testid="stModal"] [data-baseweb="input"],
+    [role="dialog"] input {
+        background-color: rgba(0, 0, 0, 0.3) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        color: #ffffff !important;
+    }
+    
+    /* 入力フィールド内のテキスト（入力値） */
+    [data-testid="stModal"] input[type="text"],
+    [data-testid="stModal"] input[type="number"],
+    [data-testid="stModal"] textarea,
+    [role="dialog"] input[type="text"],
+    [role="dialog"] input[type="number"],
+    [role="dialog"] textarea {
+        color: #ffffff !important;
+        background-color: rgba(0, 0, 0, 0.4) !important;
+    }
+    
+    /* プレースホルダーテキスト */
+    [data-testid="stModal"] input::placeholder,
+    [role="dialog"] input::placeholder {
+        color: rgba(255, 255, 255, 0.5) !important;
+    }
+    
+    [data-testid="stModal"] input:focus,
+    [role="dialog"] input:focus {
+        border-color: #7fb5d4 !important;
+        background-color: rgba(0, 0, 0, 0.5) !important;
+        color: #ffffff !important;
+    }
+    
+    /* ダイアログのボタン */
+    [data-testid="stModal"] .stButton > button,
+    [role="dialog"] button {
+        background-color: #89b4d6 !important;
+        color: #ffffff !important;
+        border: none !important;
+    }
+    
+    [data-testid="stModal"] .stButton > button:hover,
+    [role="dialog"] button:hover {
+        background-color: #7fb5d4 !important;
+    }
+    
+    /* プライマリボタン */
+    [data-testid="stModal"] button[kind="primary"],
+    [role="dialog"] button[kind="primary"] {
+        background-color: #7fb5d4 !important;
+        color: #ffffff !important;
+    }
+    
+    [data-testid="stModal"] button[kind="primary"]:hover,
+    [role="dialog"] button[kind="primary"]:hover {
+        background-color: #6da8c9 !important;
+    }
+    
+    /* 数値入力フィールドのコンテナと入力部分 */
+    [data-testid="stModal"] .stNumberInput [data-baseweb="input"],
+    [data-testid="stModal"] .stNumberInput [data-baseweb="input"] > div,
+    [data-testid="stModal"] .stNumberInput [data-baseweb="input"] > div > div,
+    [data-testid="stModal"] .stNumberInput input {
+        background-color: rgba(0, 0, 0, 0.4) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* 数値入力フィールドの全ての内部要素を強制的に黒背景に */
+    [data-testid="stModal"] .stNumberInput * {
+        background-color: transparent !important;
+    }
+    [data-testid="stModal"] .stNumberInput [data-baseweb="input"],
+    [data-testid="stModal"] .stNumberInput [data-baseweb="input"] input {
+        background-color: rgba(0, 0, 0, 0.4) !important;
+    }
+    
+    /* 数値入力フィールドのラベルを確実に白に */
+    [data-testid="stModal"] .stNumberInput label {
+        color: #ffffff !important;
+    }
+    
+    /* 数値入力の増減ボタン */
+    [data-testid="stModal"] .stNumberInput button {
+        background-color: rgba(127, 181, 212, 0.3) !important;
+        color: #ffffff !important;
+        border: none !important;
+    }
+    
+    [data-testid="stModal"] .stNumberInput button:hover {
+        background-color: rgba(127, 181, 212, 0.5) !important;
+    }
+    
+    [data-testid="stModal"] .stNumberInput button svg {
+        fill: #ffffff !important;
+    }
+    
+    /* テキスト入力フィールドも同様に */
+    [data-testid="stModal"] .stTextInput input {
+        background-color: rgba(0, 0, 0, 0.4) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* セレクトボックス */
+    [data-testid="stModal"] [data-baseweb="select"] {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    [data-testid="stModal"] [data-baseweb="select"] > div {
+        color: #ffffff !important;
+    }
+    
+    /* カレンダーのスタイル */
+    [data-testid="stDateInputPopover"],
+    [data-baseweb="popover"],
+    .stDateInput [data-baseweb="popover"] {
+        background-color: #2c3e50 !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    /* カレンダーのヘッダー（月と年） */
+    [data-baseweb="calendar"] [data-baseweb="heading"],
+    [data-baseweb="calendar-header"],
+    .stDateInput [data-baseweb="calendar-header"] {
+        background-color: #2c3e50 !important;
+        color: #ffffff !important;
+    }
+    
+    /* カレンダーのナビゲーションボタン（前月・次月） */
+    [data-baseweb="calendar"] button,
+    [data-baseweb="calendar-header"] button {
+        color: #ffffff !important;
+        background-color: transparent !important;
+    }
+    
+    [data-baseweb="calendar"] button:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    /* カレンダーのセレクトボックス（月・年選択） */
+    [data-baseweb="calendar"] select,
+    [data-baseweb="select"] {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* 曜日のヘッダー */
+    [data-baseweb="calendar-grid"] > div:first-child,
+    .stDateInput [role="grid"] > div:first-child {
+        color: #a0a0a0 !important;
+    }
+    
+    /* 日付の数字 */
+    [data-baseweb="calendar"] [role="gridcell"],
+    [data-baseweb="calendar"] [role="gridcell"] > div,
+    [data-baseweb="calendar-day"],
+    .stDateInput [role="gridcell"],
+    .stDateInput [role="gridcell"] button {
+        color: #ffffff !important;
+        background-color: transparent !important;
+    }
+    
+    /* 選択された日付 */
+    [data-baseweb="calendar"] [aria-selected="true"],
+    [data-baseweb="calendar"] [role="gridcell"][aria-selected="true"],
+    .stDateInput [aria-selected="true"] {
+        background-color: #e74c3c !important;
+        color: #ffffff !important;
+        border-radius: 50% !important;
+    }
+    
+    /* 今日の日付 */
+    [data-baseweb="calendar"] [data-highlighted="true"],
+    .stDateInput [data-highlighted="true"] {
+        border: 2px solid #7fb5d4 !important;
+        border-radius: 50% !important;
+    }
+    
+    /* ホバー時の日付 */
+    [data-baseweb="calendar"] [role="gridcell"]:hover,
+    .stDateInput [role="gridcell"]:hover button {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        border-radius: 50% !important;
+    }
+    
+    /* 月外の日付（前月・次月の日付） */
+    [data-baseweb="calendar"] [data-outside-month="true"],
+    .stDateInput [aria-disabled="true"] {
+        color: rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* カレンダー全体の文字色を強制的に白に */
+    [data-testid="stDateInputPopover"] *,
+    [data-baseweb="popover"] *,
+    [data-baseweb="calendar"] * {
+        color: #ffffff !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    emp = st.session_state.get('quick_take_employee')
+    if not emp:
+        return
+    
+    st.markdown(f"<p style='color: #ffffff;'><strong>従業員</strong>: {emp.name} ({emp.employeeCode})</p>", unsafe_allow_html=True)
+    
+    take_date = st.date_input("取得日", value=datetime.now(), key="quick_take_date")
+    take_days = st.number_input("取得日数", min_value=0.0, max_value=100.0, value=1.0, step=0.5, key="quick_take_days")
+    take_reason = st.text_input("理由（任意）", value="", key="quick_take_reason")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("キャンセル", use_container_width=True):
+            del st.session_state.quick_take_employee
+            del st.session_state.show_quick_take_dialog
+            st.rerun()
+    with col2:
+        if st.button("登録", use_container_width=True, type="primary"):
+            if take_date and take_days > 0:
+                # 新しい取得を追加
+                new_take = Take(
+                    id=generate_uuid(),
+                    date=take_date.strftime('%Y-%m-%d'),
+                    days=round_to_decimal(take_days),
+                    reason=take_reason or '有給休暇取得'
+                )
+                emp.takes.append(new_take)
+                emp.takes.sort(key=lambda x: x.date)
+                
+                # 法定付与を再適用して最新の状態にする
+                emp = auto_populate_grants(emp)
+                
+                # データベースに保存
+                idx = next(i for i, e in enumerate(st.session_state.employees) if e.id == emp.id)
+                st.session_state.employees[idx] = emp
+                save_employees()
+                
+                # クリーンアップ
+                del st.session_state.quick_take_employee
+                del st.session_state.show_quick_take_dialog
+                st.success(f"{emp.name} さんの有給取得を登録しました")
+                st.rerun()
+
+
 def show_employee_list():
     """従業員一覧画面"""
+    
+    # 簡易取得登録ダイアログ
+    if st.session_state.get('show_quick_take_dialog', False):
+        show_quick_take_dialog()
     
     st.markdown("<div class='main-header'><h1>有給休暇管理システム</h1><p>労働基準法に基づく有給休暇の付与・取得・時効を記録・管理します。</p></div>", unsafe_allow_html=True)
     
@@ -850,44 +1212,65 @@ def show_employee_list():
     
     # テーブル表示
     if filtered_employees:
-        table_data = []
-        for emp in filtered_employees:
+        # ヘッダー行
+        st.markdown("""
+        <div style="background: linear-gradient(180deg, #d4e8f3 0%, #c4dff0 100%); padding: 0.9rem 1rem; border-radius: 0.8rem 0.8rem 0 0; margin-bottom: 0.8rem;">
+            <div style="display: grid; grid-template-columns: 0.7fr 1.6fr 1.1fr 1.4fr 1.2fr 1.2fr 0.9fr 0.9fr; gap: 0.8rem; align-items: center;">
+                <div style="color: #6b8fa8; font-weight: 500; text-align: center;">コード</div>
+                <div style="color: #6b8fa8; font-weight: 500;">名前</div>
+                <div style="color: #6b8fa8; font-weight: 500;">部署</div>
+                <div style="color: #6b8fa8; font-weight: 500;">種別</div>
+                <div style="color: #6b8fa8; font-weight: 500;">入社日</div>
+                <div style="color: #6b8fa8; font-weight: 500;">退社日</div>
+                <div style="color: #6b8fa8; font-weight: 500; text-align: center;">残日数</div>
+                <div style="color: #6b8fa8; font-weight: 500; text-align: center;">操作</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # データ行
+        for i, emp in enumerate(filtered_employees):
             remaining = calculate_remaining_days(emp.grants, emp.takes, emp.resignationDate)
             emp_type = f"パート(週{emp.weeklyDays}日)" if emp.employeeType == 'Part-time' else '正社員'
             
-            table_data.append({
-                'コード': emp.employeeCode,
-                '名前': emp.name,
-                '部署': emp.department or '未設定',
-                '種別': emp_type,
-                '入社日': emp.joinDate or '未設定',
-                '退社日': emp.resignationDate or '在籍中',
-                '残日数': f"{remaining:.1f}",
-            })
-        
-        df = pd.DataFrame(table_data)
-        
-        # HTMLテーブルとして表示（白背景を確実に適用）
-        html_table = f"""
-        <div style="background-color: #ffffff; border-radius: 0.8rem; overflow: hidden; box-shadow: 0 2px 8px rgba(191, 229, 240, 0.15);">
-            <table style="width: 100%; border-collapse: collapse; background-color: #ffffff;">
-                <thead>
-                    <tr style="background: linear-gradient(180deg, #d4e8f3 0%, #c4dff0 100%);">
-                        {''.join([f'<th style="padding: 1rem; text-align: left; color: #6b8fa8; font-weight: 500; border-bottom: 2px solid #b8d9ed;">{col}</th>' for col in df.columns])}
-                    </tr>
-                </thead>
-                <tbody>
-                    {''.join([
-                        f'<tr style="background-color: {"rgba(230, 247, 251, 0.25)" if i % 2 == 1 else "#ffffff"}; border-bottom: 1px solid rgba(212, 232, 243, 0.4);">' +
-                        ''.join([f'<td style="padding: 0.9rem 1rem; color: #4a5568; background-color: inherit;">{row[col]}</td>' for col in df.columns]) +
-                        '</tr>'
-                        for i, (_, row) in enumerate(df.iterrows())
-                    ])}
-                </tbody>
-            </table>
-        </div>
-        """
-        st.markdown(html_table, unsafe_allow_html=True)
+            # 行の背景色
+            bg_color = "rgba(230, 247, 251, 0.25)" if i % 2 == 1 else "#ffffff"
+            
+            # 最初の行の上部に余白を追加
+            if i == 0:
+                st.markdown('<div style="margin-top: 0.5rem;"></div>', unsafe_allow_html=True)
+            
+            # 1行でデータとボタンを表示
+            cols = st.columns([0.7, 1.6, 1.1, 1.4, 1.2, 1.2, 0.9, 0.9])
+            
+            # 最初の行のパディングを調整
+            top_padding = "1rem" if i == 0 else "0.6rem"
+            
+            with cols[0]:
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0; text-align: center;">{emp.employeeCode}</div>', unsafe_allow_html=True)
+            with cols[1]:
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0;">{emp.name}</div>', unsafe_allow_html=True)
+            with cols[2]:
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0;">{emp.department or "未設定"}</div>', unsafe_allow_html=True)
+            with cols[3]:
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0;">{emp_type}</div>', unsafe_allow_html=True)
+            with cols[4]:
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0;">{emp.joinDate or "未設定"}</div>', unsafe_allow_html=True)
+            with cols[5]:
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0;">{emp.resignationDate or "在籍中"}</div>', unsafe_allow_html=True)
+            with cols[6]:
+                st.markdown(f'<div style="color: #2d3748; font-size: 1.25rem; font-weight: 700; padding: {top_padding} 0 0.6rem 0; text-align: center;">{remaining:.1f}</div>', unsafe_allow_html=True)
+            with cols[7]:
+                if st.button("取得", key=f"quick_take_{emp.id}", use_container_width=True):
+                    # 法定付与を適用した最新の従業員データを使用
+                    emp_with_grants = auto_populate_grants(emp)
+                    st.session_state.quick_take_employee = emp_with_grants
+                    st.session_state.show_quick_take_dialog = True
+                    st.rerun()
+            
+            # 行の区切り線
+            if i < len(filtered_employees) - 1:
+                st.markdown('<hr style="margin: 0.3rem 0; border: none; border-top: 1px solid rgba(212, 232, 243, 0.4);">', unsafe_allow_html=True)
         
         # 編集ボタン
         st.write("---")
@@ -931,97 +1314,106 @@ def has_basic_info_changed(current, original_values):
     )
 
 
-def show_confirmation_dialog(message, action_key):
-    """確認ダイアログを表示"""
-    # 共通スタイル（繰り返し挿入しても問題なし）
+@st.dialog("このページの内容")
+def show_confirmation_dialog(message):
+    """確認ダイアログを表示（モーダル形式）"""
+    # カスタムスタイル
     st.markdown("""
     <style>
-    .confirm-dialog-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.3);
-        z-index: 9999;
+    /* ダイアログ内のすべてのテキストを白色に強制 */
+    [role="dialog"] *:not(button):not(svg) {
+        color: #ffffff !important;
     }
-    .confirm-dialog-title {
-        color: #666;
-        margin-bottom: 10px;
-        font-size: 14px;
+    /* ダイアログ全体のスタイル */
+    [data-testid="stModal"] {
+        background-color: rgba(0, 0, 0, 0.4) !important;
     }
-    .confirm-dialog-message {
-        color: #333;
-        margin: 0 0 8px 0;
-        font-size: 16px;
+    [data-testid="stModal"] > div:first-child {
+        background-color: #2c3e50;
+        border-radius: 13px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+        padding: 20px;
+        max-width: 400px;
+    }
+    /* ダイアログのタイトル - すべてのヘッダー要素 */
+    [data-testid="stModal"] h1,
+    [data-testid="stModal"] h2,
+    [data-testid="stModal"] h3,
+    [data-testid="stModal"] h4,
+    [data-testid="stModal"] [data-testid="stModalHeading"],
+    [role="dialog"] h1,
+    [role="dialog"] h2,
+    [role="dialog"] h3,
+    [role="dialog"] header {
+        color: #ffffff !important;
+    }
+    /* メッセージのスタイル - すべてのテキスト要素 */
+    [data-testid="stModal"] p,
+    [data-testid="stModal"] span,
+    [data-testid="stModal"] div,
+    [role="dialog"] p,
+    [role="dialog"] span {
+        color: #ffffff !important;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    /* st.writeのコンテンツ */
+    [data-testid="stModal"] .element-container p {
+        color: #ffffff !important;
+    }
+    /* ボタンコンテナ */
+    [data-testid="stModal"] [data-testid="stHorizontalBlock"] {
+        gap: 8px;
+        justify-content: flex-end;
+    }
+    /* キャンセルボタン */
+    [data-testid="stModal"] .stButton>button {
+        border-radius: 6px;
+        padding: 8px 20px;
+        font-size: 13px;
         font-weight: 500;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        min-width: 80px;
     }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 10001;
-        width: auto;
-        background-color: #fff;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        padding: 32px 40px;
-        min-width: 400px;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
+    [data-testid="stModal"] .stButton>button:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.4);
     }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) > div[data-testid="stFormSubmitButton"] {
-        margin: 0;
+    /* OKボタン */
+    [data-testid="stModal"] button[kind="primary"] {
+        background-color: #7fb5d4 !important;
+        color: #ffffff !important;
+        border: none !important;
+        font-weight: 600 !important;
+        border-radius: 6px !important;
+        padding: 8px 20px !important;
+        font-size: 13px !important;
+        min-width: 80px !important;
     }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) div[data-testid="stHorizontalBlock"] {
-        gap: 16px;
-        justify-content: center;
+    [data-testid="stModal"] button[kind="primary"]:hover {
+        background-color: #6da8c9 !important;
     }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) div[data-testid="column"] {
-        padding: 0 !important;
-        display: flex;
-        justify-content: center;
-    }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) .stFormSubmitButton {
-        margin: 0;
-    }
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) .stButton>button,
-    form[data-testid="stForm"]:has(.confirm-dialog-marker) .stFormSubmitButton>button {
-        width: 100%;
-    }
-    .confirm-dialog-marker {
-        display: none;
+    /* ダイアログ内のラベル */
+    [data-testid="stModal"] label {
+        color: #ffffff !important;
     }
     </style>
     """, unsafe_allow_html=True)
-
-    # オーバーレイ背景
-    st.markdown('<div class="confirm-dialog-overlay"></div>', unsafe_allow_html=True)
     
-    cancel_clicked = False
-    confirm_clicked = False
-    form_key = f"confirm_form_{action_key}"
-    with st.form(key=form_key):
-        st.markdown('<div class="confirm-dialog-marker"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="confirm-dialog-title">このページの内容</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="confirm-dialog-message">{message}</div>', unsafe_allow_html=True)
-        col_cancel, col_confirm = st.columns(2)
-        with col_cancel:
-            cancel_clicked = st.form_submit_button("いいえ", use_container_width=True)
-        with col_confirm:
-            confirm_clicked = st.form_submit_button("はい", use_container_width=True, type="primary")
-
-    if cancel_clicked:
-        if action_key in st.session_state:
-            del st.session_state[action_key]
-        st.rerun()
-    if confirm_clicked:
-        return True
-    return False
+    # メッセージを白色で表示
+    st.markdown(f"<p style='color: #ffffff !important; font-size: 14px;'>{message}</p>", unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("キャンセル", use_container_width=True, key="modal_cancel"):
+            st.session_state.dialog_result = False
+            st.rerun()
+    with col2:
+        if st.button("OK", use_container_width=True, type="primary", key="modal_ok"):
+            st.session_state.dialog_result = True
+            st.rerun()
 
 
 def show_employee_form():
@@ -1070,18 +1462,36 @@ def show_employee_form():
     
     # 残日数サマリー
     remaining = calculate_remaining_days(emp.grants, emp.takes, emp.resignationDate)
+    
+    # 時効済みの付与数を計算
+    from datetime import datetime
+    from dateutil.relativedelta import relativedelta
+    today = datetime.now()
+    expired_grants = 0
+    valid_grants = 0
+    for grant in emp.grants:
+        grant_date = datetime.strptime(grant.date, '%Y-%m-%d')
+        expiry_date = grant_date + relativedelta(years=2)
+        if today >= expiry_date:
+            expired_grants += 1
+        else:
+            valid_grants += 1
+    
     st.markdown(f"""
     <div class='stat-card'>
         <h3>現在の残日数（時効考慮）</h3>
         <div class='remaining-days'>{remaining:.1f} <span style='font-size: 1.2rem; font-weight: normal;'>日</span></div>
+        <p style='color: #6b8fa8; margin-top: 0.5rem; font-size: 0.9rem;'>
+            ※有効な付与: {valid_grants}件 | 時効済み付与: {expired_grants}件（計算対象外）
+        </p>
         {f"<p style='color: red; margin-top: 0.5rem;'>※退社日 ({emp.resignationDate}) 以降の付与・取得は計算対象外です。</p>" if emp.resignationDate else ""}
     </div>
     """, unsafe_allow_html=True)
     
     st.write("")
     
-    # 基本情報
-    with st.expander("基本情報", expanded=True):
+    # 基本情報（新規登録時は開く）
+    with st.expander("基本情報", expanded=is_new):
         col1, col2 = st.columns(2)
         with col1:
             emp.employeeCode = st.text_input("従業員コード（必須）*", value=emp.employeeCode)
@@ -1134,64 +1544,85 @@ def show_employee_form():
                 import pandas as pd
                 st.dataframe(pd.DataFrame(schedule_data), use_container_width=True, hide_index=True)
     
-    # 付与履歴
-    with st.expander("付与履歴（手動追加）", expanded=True):
-        # 付与追加の確認ダイアログ
-        if st.session_state.get('confirm_add_grant', False):
+    # 付与履歴（新規登録時は開く）
+    with st.expander("有給付与（手動）", expanded=is_new):
+        # 付与追加の確認ダイアログ（モーダル形式）
+        if st.session_state.get('show_grant_dialog', False):
             data = st.session_state.get('grant_data', {})
-            if show_confirmation_dialog(
-                f"{data['date'].strftime('%Y-%m-%d')}に{data['days']:.1f}日の有給付与を追加しますか？",
-                'confirm_add_grant'
-            ):
-                # 実際に追加処理を実行
-                new_grant = Grant(
-                    id=generate_uuid(),
-                    date=data['date'].strftime('%Y-%m-%d'),
-                    days=round_to_decimal(data['days']),
-                    reason=data['reason'] or '手動付与'
-                )
-                emp.grants.append(new_grant)
-                emp.grants.sort(key=lambda x: x.date)
+            show_confirmation_dialog(f"{data['date'].strftime('%Y-%m-%d')}に{data['days']:.1f}日の有給付与を追加しますか？")
+        
+        # ダイアログの結果を処理
+        if st.session_state.get('dialog_result') is True and st.session_state.get('show_grant_dialog', False):
+            data = st.session_state.get('grant_data', {})
+            # 実際に追加処理を実行
+            new_grant = Grant(
+                id=generate_uuid(),
+                date=data['date'].strftime('%Y-%m-%d'),
+                days=round_to_decimal(data['days']),
+                reason=data['reason'] or '手動付与'
+            )
+            emp.grants.append(new_grant)
+            emp.grants.sort(key=lambda x: x.date)
+            
+            # session_stateを更新して残日数計算に反映
+            st.session_state.selected_employee = emp
+            
+            # データベースにも保存
+            if not is_new:
+                idx = next(i for i, e in enumerate(st.session_state.employees) if e.id == emp.id)
+                st.session_state.employees[idx] = emp
+                save_employees()
+            
+            # クリーンアップ
+            del st.session_state.show_grant_dialog
+            del st.session_state.grant_data
+            del st.session_state.dialog_result
+            st.success("付与を追加しました")
+            st.rerun()
+        elif st.session_state.get('dialog_result') is False and st.session_state.get('show_grant_dialog', False):
+            # キャンセルされた
+            del st.session_state.show_grant_dialog
+            if 'grant_data' in st.session_state:
+                del st.session_state.grant_data
+            del st.session_state.dialog_result
+            st.rerun()
+        
+        # 付与削除の確認ダイアログ（モーダル形式）
+        for i in range(len(emp.grants)):
+            if st.session_state.get(f'show_del_grant_dialog_{i}', False):
+                data = st.session_state.get('grant_del_data', {})
+                show_confirmation_dialog(f"本当に{data['date']}の{data['days']:.1f}日の付与履歴を削除しますか？")
+        
+        # 削除ダイアログの結果を処理
+        for i in range(len(emp.grants)):
+            if st.session_state.get('dialog_result') is True and st.session_state.get(f'show_del_grant_dialog_{i}', False):
+                data = st.session_state.get('grant_del_data', {})
+                # 実際に削除処理を実行
+                emp.grants.pop(data['index'])
                 
                 # session_stateを更新して残日数計算に反映
                 st.session_state.selected_employee = emp
                 
                 # データベースにも保存
                 if not is_new:
-                    idx = next(i for i, e in enumerate(st.session_state.employees) if e.id == emp.id)
-                    st.session_state.employees[idx] = emp
-                    save_employees()
+                    idx = next((j for j, e in enumerate(st.session_state.employees) if e.id == emp.id), None)
+                    if idx is not None:
+                        st.session_state.employees[idx] = emp
+                        save_employees()
                 
-                del st.session_state.confirm_add_grant
-                del st.session_state.grant_data
-                st.success("付与を追加しました")
+                # クリーンアップ
+                del st.session_state[f'show_del_grant_dialog_{i}']
+                del st.session_state.grant_del_data
+                del st.session_state.dialog_result
+                st.success("削除しました")
                 st.rerun()
-        
-        # 付与削除の確認ダイアログ
-        for i in range(len(emp.grants)):
-            if st.session_state.get(f'confirm_del_grant_{i}', False):
-                data = st.session_state.get('grant_del_data', {})
-                if show_confirmation_dialog(
-                    f"本当に{data['date']}の{data['days']:.1f}日の付与履歴を削除しますか？",
-                    f'confirm_del_grant_{i}'
-                ):
-                    # 実際に削除処理を実行
-                    emp.grants.pop(data['index'])
-                    
-                    # session_stateを更新して残日数計算に反映
-                    st.session_state.selected_employee = emp
-                    
-                    # データベースにも保存
-                    if not is_new:
-                        idx = next((j for j, e in enumerate(st.session_state.employees) if e.id == emp.id), None)
-                        if idx is not None:
-                            st.session_state.employees[idx] = emp
-                            save_employees()
-                    
-                    del st.session_state[f'confirm_del_grant_{i}']
+            elif st.session_state.get('dialog_result') is False and st.session_state.get(f'show_del_grant_dialog_{i}', False):
+                # キャンセルされた
+                del st.session_state[f'show_del_grant_dialog_{i}']
+                if 'grant_del_data' in st.session_state:
                     del st.session_state.grant_del_data
-                    st.success("削除しました")
-                    st.rerun()
+                del st.session_state.dialog_result
+                st.rerun()
         
         st.write("##### 新しい付与を追加")
         col1, col2, col3, col4 = st.columns([2, 1, 2, 1])
@@ -1207,7 +1638,7 @@ def show_employee_form():
             st.write("")
             if st.button("付与追加", type="primary", key="add_grant_btn"):
                 if grant_date and grant_days > 0:
-                    st.session_state.confirm_add_grant = True
+                    st.session_state.show_grant_dialog = True
                     st.session_state.grant_data = {
                         'date': grant_date,
                         'days': grant_days,
@@ -1225,87 +1656,128 @@ def show_employee_form():
                 expiry_date = datetime.strptime(grant.date, '%Y-%m-%d') + pd.DateOffset(years=2)
                 is_expired = expiry_date.date() < datetime.now().date()
                 
+                # 時効済みの場合は背景色を変更
+                if is_expired:
+                    card_style = "background-color: rgba(200, 200, 200, 0.3); border-radius: 0.5rem; padding: 0.5rem; margin: 0.2rem 0;"
+                    text_color = "#999999"
+                    days_color = "#999999"
+                    reason_color = "#999999"
+                else:
+                    card_style = "background-color: #ffffff; border-radius: 0.5rem; padding: 0.5rem; margin: 0.2rem 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"
+                    text_color = "#4a5568"
+                    days_color = "#4a5568"
+                    reason_color = "#6b8fa8"
+                
+                # 白いカード形式で表示（削除ボタンも含めて）
                 col1, col2, col3, col4, col5 = st.columns([2, 1, 3, 2, 1])
+                
+                # カードのコンテナとして機能
                 with col1:
-                    st.write(grant.date)
+                    st.markdown(f'<div style="color: {text_color}; padding: 0.5rem 0;">{grant.date}</div>', unsafe_allow_html=True)
                 with col2:
-                    st.write(f"**{grant.days:.1f}日**")
+                    st.markdown(f'<div style="color: {days_color}; font-weight: 600; padding: 0.5rem 0;">{grant.days:.1f}日</div>', unsafe_allow_html=True)
                 with col3:
-                    st.write(f"_{grant.reason}_")
+                    st.markdown(f'<div style="color: {reason_color}; font-style: italic; padding: 0.5rem 0;">{grant.reason}</div>', unsafe_allow_html=True)
                 with col4:
-                    st.write(f"時効日: {expiry_date.strftime('%Y-%m-%d')}")
+                    expiry_text = f'時効日: {expiry_date.strftime("%Y-%m-%d")}'
                     if is_expired:
-                        st.caption("🔴 時効")
+                        expiry_text += ' <span style="color: red; font-weight: bold;">🔴 時効済み</span>'
+                    else:
+                        expiry_text += ' <span style="color: green;">✅ 有効</span>'
+                    st.markdown(f'<div style="color: {text_color}; padding: 0.5rem 0;">{expiry_text}</div>', unsafe_allow_html=True)
                 with col5:
                     if st.button("削除", key=f"del_grant_{i}"):
-                        st.session_state[f'confirm_del_grant_{i}'] = True
+                        st.session_state[f'show_del_grant_dialog_{i}'] = True
                         st.session_state.grant_del_data = {
                             'index': i,
                             'date': grant.date,
                             'days': grant.days
                         }
                         st.rerun()
+                
+                st.markdown('<hr style="margin: 0.5rem 0; border: none; border-top: 1px solid rgba(212, 232, 243, 0.4);">', unsafe_allow_html=True)
         else:
             st.info("付与履歴がありません")
     
     # 取得履歴
-    with st.expander("取得履歴", expanded=True):
-        # 取得追加の確認ダイアログ
-        if st.session_state.get('confirm_add_take', False):
+    with st.expander("有給取得履歴", expanded=True):
+        # 取得追加の確認ダイアログ（モーダル形式）
+        if st.session_state.get('show_take_dialog', False):
             data = st.session_state.get('take_data', {})
-            if show_confirmation_dialog(
-                f"{data['date'].strftime('%Y-%m-%d')}に{data['days']:.1f}日の有給取得を追加しますか？",
-                'confirm_add_take'
-            ):
-                # 実際に追加処理を実行
-                new_take = Take(
-                    id=generate_uuid(),
-                    date=data['date'].strftime('%Y-%m-%d'),
-                    days=round_to_decimal(data['days']),
-                    reason=data['reason'] or '有給休暇取得'
-                )
-                emp.takes.append(new_take)
-                emp.takes.sort(key=lambda x: x.date)
+            show_confirmation_dialog(f"{data['date'].strftime('%Y-%m-%d')}に{data['days']:.1f}日の有給取得を追加しますか？")
+        
+        # ダイアログの結果を処理
+        if st.session_state.get('dialog_result') is True and st.session_state.get('show_take_dialog', False):
+            data = st.session_state.get('take_data', {})
+            # 実際に追加処理を実行
+            new_take = Take(
+                id=generate_uuid(),
+                date=data['date'].strftime('%Y-%m-%d'),
+                days=round_to_decimal(data['days']),
+                reason=data['reason'] or '有給休暇取得'
+            )
+            emp.takes.append(new_take)
+            emp.takes.sort(key=lambda x: x.date)
+            
+            # session_stateを更新して残日数計算に反映
+            st.session_state.selected_employee = emp
+            
+            # データベースにも保存
+            if not is_new:
+                idx = next(i for i, e in enumerate(st.session_state.employees) if e.id == emp.id)
+                st.session_state.employees[idx] = emp
+                save_employees()
+            
+            # クリーンアップ
+            del st.session_state.show_take_dialog
+            del st.session_state.take_data
+            del st.session_state.dialog_result
+            st.success("取得を追加しました")
+            st.rerun()
+        elif st.session_state.get('dialog_result') is False and st.session_state.get('show_take_dialog', False):
+            # キャンセルされた
+            del st.session_state.show_take_dialog
+            if 'take_data' in st.session_state:
+                del st.session_state.take_data
+            del st.session_state.dialog_result
+            st.rerun()
+        
+        # 取得削除の確認ダイアログ（モーダル形式）
+        for i in range(len(emp.takes)):
+            if st.session_state.get(f'show_del_take_dialog_{i}', False):
+                data = st.session_state.get('take_del_data', {})
+                show_confirmation_dialog(f"本当に{data['date']}の{data['days']:.1f}日の取得履歴を削除しますか？")
+        
+        # 削除ダイアログの結果を処理
+        for i in range(len(emp.takes)):
+            if st.session_state.get('dialog_result') is True and st.session_state.get(f'show_del_take_dialog_{i}', False):
+                data = st.session_state.get('take_del_data', {})
+                # 実際に削除処理を実行
+                emp.takes.pop(data['index'])
                 
                 # session_stateを更新して残日数計算に反映
                 st.session_state.selected_employee = emp
                 
                 # データベースにも保存
                 if not is_new:
-                    idx = next(i for i, e in enumerate(st.session_state.employees) if e.id == emp.id)
-                    st.session_state.employees[idx] = emp
-                    save_employees()
+                    idx = next((j for j, e in enumerate(st.session_state.employees) if e.id == emp.id), None)
+                    if idx is not None:
+                        st.session_state.employees[idx] = emp
+                        save_employees()
                 
-                del st.session_state.confirm_add_take
-                del st.session_state.take_data
-                st.success("取得を追加しました")
+                # クリーンアップ
+                del st.session_state[f'show_del_take_dialog_{i}']
+                del st.session_state.take_del_data
+                del st.session_state.dialog_result
+                st.success("削除しました")
                 st.rerun()
-        
-        # 取得削除の確認ダイアログ
-        for i in range(len(emp.takes)):
-            if st.session_state.get(f'confirm_del_take_{i}', False):
-                data = st.session_state.get('take_del_data', {})
-                if show_confirmation_dialog(
-                    f"本当に{data['date']}の{data['days']:.1f}日の取得履歴を削除しますか？",
-                    f'confirm_del_take_{i}'
-                ):
-                    # 実際に削除処理を実行
-                    emp.takes.pop(data['index'])
-                    
-                    # session_stateを更新して残日数計算に反映
-                    st.session_state.selected_employee = emp
-                    
-                    # データベースにも保存
-                    if not is_new:
-                        idx = next((j for j, e in enumerate(st.session_state.employees) if e.id == emp.id), None)
-                        if idx is not None:
-                            st.session_state.employees[idx] = emp
-                            save_employees()
-                    
-                    del st.session_state[f'confirm_del_take_{i}']
+            elif st.session_state.get('dialog_result') is False and st.session_state.get(f'show_del_take_dialog_{i}', False):
+                # キャンセルされた
+                del st.session_state[f'show_del_take_dialog_{i}']
+                if 'take_del_data' in st.session_state:
                     del st.session_state.take_del_data
-                    st.success("削除しました")
-                    st.rerun()
+                del st.session_state.dialog_result
+                st.rerun()
         
         st.write("##### 新しい取得を追加")
         col1, col2, col3, col4 = st.columns([2, 1, 2, 1])
@@ -1317,11 +1789,11 @@ def show_employee_form():
         with col3:
             take_reason = st.text_input("理由", value="", key="take_reason_input")
         with col4:
-            st.write("")
+            st.markdown('<div style="height: 2px;"></div>', unsafe_allow_html=True)
             st.write("")
             if st.button("取得追加", type="primary", key="add_take_btn"):
                 if take_date and take_days > 0:
-                    st.session_state.confirm_add_take = True
+                    st.session_state.show_take_dialog = True
                     st.session_state.take_data = {
                         'date': take_date,
                         'days': take_days,
@@ -1336,24 +1808,62 @@ def show_employee_form():
         
         if emp.takes:
             for i, take in enumerate(emp.takes):
+                # カラム形式で表示（削除ボタンも含めて）
                 col1, col2, col3, col4 = st.columns([2, 1, 4, 1])
+                
                 with col1:
-                    st.write(take.date)
+                    st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{take.date}</div>', unsafe_allow_html=True)
                 with col2:
-                    st.write(f"**-{take.days:.1f}日**")
+                    st.markdown(f'<div style="color: #d32f2f; font-weight: 600; padding: 0.5rem 0;">-{take.days:.1f}日</div>', unsafe_allow_html=True)
                 with col3:
-                    st.write(f"_{take.reason}_")
+                    reason_text = take.reason if take.reason else '（理由なし）'
+                    st.markdown(f'<div style="color: #6b8fa8; font-style: italic; padding: 0.5rem 0;">{reason_text}</div>', unsafe_allow_html=True)
                 with col4:
                     if st.button("削除", key=f"del_take_{i}"):
-                        st.session_state[f'confirm_del_take_{i}'] = True
+                        st.session_state[f'show_del_take_dialog_{i}'] = True
                         st.session_state.take_del_data = {
                             'index': i,
                             'date': take.date,
                             'days': take.days
                         }
                         st.rerun()
+                
+                st.markdown('<hr style="margin: 0.5rem 0; border: none; border-top: 1px solid rgba(212, 232, 243, 0.4);">', unsafe_allow_html=True)
         else:
             st.info("取得履歴がありません")
+    
+    # 従業員削除の確認ダイアログ（モーダル形式）
+    if st.session_state.get('show_delete_employee_dialog', False):
+        show_confirmation_dialog(f"本当に {emp.name} さんを削除しますか？")
+    
+    # ダイアログの結果を処理
+    if st.session_state.get('dialog_result') is True and st.session_state.get('show_delete_employee_dialog', False):
+        # 実際に削除処理を実行
+        st.session_state.employees = [e for e in st.session_state.employees if e.id != emp.id]
+        if save_employees():
+            # クリーンアップ
+            del st.session_state.show_delete_employee_dialog
+            del st.session_state.dialog_result
+            # 元データもクリア
+            if 'original_employee' in st.session_state:
+                del st.session_state.original_employee
+            if 'original_values' in st.session_state:
+                del st.session_state.original_values
+            # 確認状態もクリア
+            keys_to_delete = []
+            for key in st.session_state.keys():
+                if key.startswith('confirm_'):
+                    keys_to_delete.append(key)
+            for key in keys_to_delete:
+                del st.session_state[key]
+            st.session_state.current_view = 'list'
+            st.success("削除しました")
+            st.rerun()
+    elif st.session_state.get('dialog_result') is False and st.session_state.get('show_delete_employee_dialog', False):
+        # キャンセルされた
+        del st.session_state.show_delete_employee_dialog
+        del st.session_state.dialog_result
+        st.rerun()
     
     # 保存ボタン
     st.divider()
@@ -1412,32 +1922,8 @@ def show_employee_form():
     with col3:
         if not is_new:
             if st.button("従業員を削除", use_container_width=True):
-                if 'confirm_delete' not in st.session_state:
-                    st.session_state.confirm_delete = False
-                
-                if st.session_state.confirm_delete:
-                    st.session_state.employees = [e for e in st.session_state.employees if e.id != emp.id]
-                    if save_employees():
-                        st.success("削除しました")
-                        # 元データもクリア
-                        if 'original_employee' in st.session_state:
-                            del st.session_state.original_employee
-                        if 'original_values' in st.session_state:
-                            del st.session_state.original_values
-                        # 確認状態もクリア
-                        keys_to_delete = []
-                        for key in st.session_state.keys():
-                            if key.startswith('confirm_'):
-                                keys_to_delete.append(key)
-                        for key in keys_to_delete:
-                            del st.session_state[key]
-                        st.session_state.current_view = 'list'
-                        st.session_state.confirm_delete = False
-                        st.rerun()
-                else:
-                    st.session_state.confirm_delete = True
-                    st.warning("もう一度クリックすると削除されます")
-                    st.rerun()
+                st.session_state.show_delete_employee_dialog = True
+                st.rerun()
 
 
 def show_settings():
@@ -1472,7 +1958,7 @@ def show_settings():
     st.divider()
     
     # 部署リスト
-    for dept in st.session_state.departments:
+    for i, dept in enumerate(st.session_state.departments):
         employee_count = sum(1 for emp in st.session_state.employees if emp.department == dept.name)
         
         col1, col2, col3 = st.columns([3, 2, 1])
@@ -1490,7 +1976,9 @@ def show_settings():
             else:
                 st.caption("削除不可")
         
-        st.divider()
+        # 最後の項目以外は薄い区切り線を表示
+        if i < len(st.session_state.departments) - 1:
+            st.markdown('<hr style="margin: 0.5rem 0; border: none; border-top: 1px solid rgba(212, 232, 243, 0.4);">', unsafe_allow_html=True)
 
 
 def main():
@@ -1501,7 +1989,6 @@ def main():
     # サイドバー
     with st.sidebar:
         st.title("有給管理")
-        st.caption("デモモード")
         st.divider()
         
         if st.button("従業員一覧", use_container_width=True):
@@ -1523,6 +2010,54 @@ def main():
             load_data()
             st.success("リセットしました")
             st.rerun()
+        
+        st.divider()
+        
+        # データインポート（バックアップファイル選択形式）
+        st.write("**📤 バックアップから復元**")
+        
+        # バックアップファイル一覧を取得
+        backup_files = []
+        if os.path.exists(BACKUP_DIR):
+            all_backups = [f for f in os.listdir(BACKUP_DIR) if f.endswith('.json')]
+            # タイムスタンプでソート（新しい順）
+            all_backups.sort(reverse=True)
+            backup_files = all_backups
+        
+        if backup_files:
+            selected_backup = st.selectbox(
+                "復元するバックアップを選択",
+                ['選択してください'] + backup_files,
+                key="backup_select"
+            )
+            
+            if st.button("復元実行", use_container_width=True, disabled=(selected_backup == '選択してください')):
+                try:
+                    backup_path = os.path.join(BACKUP_DIR, selected_backup)
+                    with open(backup_path, 'r', encoding='utf-8') as f:
+                        backup_data = json.load(f)
+                    
+                    # 従業員データか部署データかを判定して復元
+                    if 'employees' in selected_backup:
+                        # 従業員データのバックアップ
+                        st.session_state.employees = [Employee.from_dict(e) for e in backup_data]
+                        save_employees()
+                        st.success("従業員データを復元しました")
+                    elif 'departments' in selected_backup:
+                        # 部署データのバックアップ
+                        st.session_state.departments = [Department.from_dict(d) for d in backup_data]
+                        save_departments()
+                        st.success("部署データを復元しました")
+                    else:
+                        # 全データのエクスポート形式
+                        if import_all_data(backup_data):
+                            st.success("すべてのデータを復元しました")
+                    
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"復元エラー: {e}")
+        else:
+            st.info("バックアップファイルがありません")
         
         st.divider()
         st.caption(f"従業員: {len(st.session_state.get('employees', []))}名")
