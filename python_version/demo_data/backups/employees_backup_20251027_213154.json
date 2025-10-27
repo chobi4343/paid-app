@@ -12,50 +12,25 @@
     "resignationDate": "",
     "grants": [
       {
-        "id": "6eaecf54-b6e2-449f-85db-a0336b08f073",
+        "id": "59bca1d2-65bf-4eaf-adec-e6d38837e5c5",
         "date": "2023-04-27",
         "days": 10,
         "reason": "正社員 0.5年勤続"
       },
       {
-        "id": "aa1b8398-8ee9-43a3-a6bf-6a2ddf53a892",
+        "id": "f0ad26cc-0c4f-47ea-9ed1-9965a9fdfd06",
         "date": "2024-04-27",
         "days": 11,
         "reason": "正社員 1.5年勤続"
       },
       {
-        "id": "3dac8604-c2da-4cba-a224-b5d397ae88f8",
+        "id": "9b58bf5d-a477-4866-ae6e-3ffe745ae57f",
         "date": "2025-04-27",
         "days": 12,
         "reason": "正社員 2.5年勤続"
       }
     ],
-    "takes": [
-      {
-        "id": "43545a8f-7e78-4129-bb33-f149c84b8390",
-        "date": "2025-10-09",
-        "days": 2.5,
-        "reason": "有給休暇取得"
-      },
-      {
-        "id": "c831701d-2cb9-4613-b1a0-a2456c0c4577",
-        "date": "2025-10-26",
-        "days": 2.0,
-        "reason": "有給休暇取得"
-      },
-      {
-        "id": "a499b64f-3b0f-4102-9e44-58ad723b04e8",
-        "date": "2025-10-27",
-        "days": 1.0,
-        "reason": "有給休暇取得"
-      },
-      {
-        "id": "4ea592b6-0458-4005-908d-a7e5085f622f",
-        "date": "2025-10-27",
-        "days": 2.0,
-        "reason": "有給休暇取得"
-      }
-    ]
+    "takes": []
   },
   {
     "id": "emp2",
@@ -84,25 +59,25 @@
     "resignationDate": "2024-10-27",
     "grants": [
       {
-        "id": "625ba7e8-99f9-48b1-b09d-9f8cbdb10ab4",
+        "id": "68e8a574-41a9-4d0f-91db-099b6f82eb81",
         "date": "2021-04-27",
         "days": 10,
         "reason": "正社員 0.5年勤続"
       },
       {
-        "id": "945e4b3c-a960-4b13-9d51-d6801d093309",
+        "id": "b727ae73-3bd3-466c-a234-1ac5c349db53",
         "date": "2022-04-27",
         "days": 11,
         "reason": "正社員 1.5年勤続"
       },
       {
-        "id": "d1ba5b58-e5fd-4739-8089-28befcb4bf17",
+        "id": "dfcf744f-a9f3-4311-a8b0-7a2384ab24b0",
         "date": "2023-04-27",
         "days": 12,
         "reason": "正社員 2.5年勤続"
       },
       {
-        "id": "03dc499a-2d5d-4140-b962-c7b4b76c0302",
+        "id": "3c90b67d-a4b2-46a9-b790-e50cda7c5998",
         "date": "2024-04-27",
         "days": 14,
         "reason": "正社員 3.5年勤続"

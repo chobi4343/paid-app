@@ -12,31 +12,25 @@
     "resignationDate": "",
     "grants": [
       {
-        "id": "6eaecf54-b6e2-449f-85db-a0336b08f073",
+        "id": "3c937e15-9b17-4f67-adaf-cfb4e1a4f511",
         "date": "2023-04-27",
         "days": 10,
         "reason": "正社員 0.5年勤続"
       },
       {
-        "id": "aa1b8398-8ee9-43a3-a6bf-6a2ddf53a892",
+        "id": "3d414a6c-8663-40c6-af53-af7d1777b348",
         "date": "2024-04-27",
         "days": 11,
         "reason": "正社員 1.5年勤続"
       },
       {
-        "id": "3dac8604-c2da-4cba-a224-b5d397ae88f8",
+        "id": "60b5b66a-c2e8-4cb0-8ac7-0f3db81444d5",
         "date": "2025-04-27",
         "days": 12,
         "reason": "正社員 2.5年勤続"
       }
     ],
     "takes": [
-      {
-        "id": "43545a8f-7e78-4129-bb33-f149c84b8390",
-        "date": "2025-10-09",
-        "days": 2.5,
-        "reason": "有給休暇取得"
-      },
       {
         "id": "c831701d-2cb9-4613-b1a0-a2456c0c4577",
         "date": "2025-10-26",

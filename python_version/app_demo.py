@@ -820,7 +820,13 @@ if 'selected_employee' not in st.session_state:
 def load_data():
     """データを読み込む"""
     emp_data = load_json_data(EMPLOYEES_FILE, [])
-    st.session_state.employees = [Employee.from_dict(e) for e in emp_data]
+    # 従業員データを読み込み、法定付与を自動追加
+    employees = []
+    for e in emp_data:
+        emp = Employee.from_dict(e)
+        emp = auto_populate_grants(emp)  # 法定付与を自動追加
+        employees.append(emp)
+    st.session_state.employees = employees
     
     dept_data = load_json_data(DEPARTMENTS_FILE, [])
     st.session_state.departments = [Department.from_dict(d) for d in dept_data]
@@ -897,15 +903,33 @@ def show_quick_take_dialog():
     [data-testid="stModal"] input,
     [data-testid="stModal"] [data-baseweb="input"],
     [role="dialog"] input {
-        background-color: rgba(255, 255, 255, 0.1) !important;
+        background-color: rgba(0, 0, 0, 0.3) !important;
         border: 1px solid rgba(255, 255, 255, 0.3) !important;
         color: #ffffff !important;
+    }
+    
+    /* 入力フィールド内のテキスト（入力値） */
+    [data-testid="stModal"] input[type="text"],
+    [data-testid="stModal"] input[type="number"],
+    [data-testid="stModal"] textarea,
+    [role="dialog"] input[type="text"],
+    [role="dialog"] input[type="number"],
+    [role="dialog"] textarea {
+        color: #ffffff !important;
+        background-color: rgba(0, 0, 0, 0.4) !important;
+    }
+    
+    /* プレースホルダーテキスト */
+    [data-testid="stModal"] input::placeholder,
+    [role="dialog"] input::placeholder {
+        color: rgba(255, 255, 255, 0.5) !important;
     }
     
     [data-testid="stModal"] input:focus,
     [role="dialog"] input:focus {
         border-color: #7fb5d4 !important;
-        background-color: rgba(255, 255, 255, 0.15) !important;
+        background-color: rgba(0, 0, 0, 0.5) !important;
+        color: #ffffff !important;
     }
     
     /* ダイアログのボタン */
@@ -933,14 +957,50 @@ def show_quick_take_dialog():
         background-color: #6da8c9 !important;
     }
     
-    /* 数値入力の増減ボタン */
-    [data-testid="stModal"] .stNumberInput button {
-        background-color: rgba(255, 255, 255, 0.2) !important;
+    /* 数値入力フィールドのコンテナと入力部分 */
+    [data-testid="stModal"] .stNumberInput [data-baseweb="input"],
+    [data-testid="stModal"] .stNumberInput [data-baseweb="input"] > div,
+    [data-testid="stModal"] .stNumberInput [data-baseweb="input"] > div > div,
+    [data-testid="stModal"] .stNumberInput input {
+        background-color: rgba(0, 0, 0, 0.4) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* 数値入力フィールドの全ての内部要素を強制的に黒背景に */
+    [data-testid="stModal"] .stNumberInput * {
+        background-color: transparent !important;
+    }
+    [data-testid="stModal"] .stNumberInput [data-baseweb="input"],
+    [data-testid="stModal"] .stNumberInput [data-baseweb="input"] input {
+        background-color: rgba(0, 0, 0, 0.4) !important;
+    }
+    
+    /* 数値入力フィールドのラベルを確実に白に */
+    [data-testid="stModal"] .stNumberInput label {
         color: #ffffff !important;
     }
     
+    /* 数値入力の増減ボタン */
+    [data-testid="stModal"] .stNumberInput button {
+        background-color: rgba(127, 181, 212, 0.3) !important;
+        color: #ffffff !important;
+        border: none !important;
+    }
+    
     [data-testid="stModal"] .stNumberInput button:hover {
-        background-color: rgba(255, 255, 255, 0.3) !important;
+        background-color: rgba(127, 181, 212, 0.5) !important;
+    }
+    
+    [data-testid="stModal"] .stNumberInput button svg {
+        fill: #ffffff !important;
+    }
+    
+    /* テキスト入力フィールドも同様に */
+    [data-testid="stModal"] .stTextInput input {
+        background-color: rgba(0, 0, 0, 0.4) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
     }
     
     /* セレクトボックス */
@@ -950,6 +1010,93 @@ def show_quick_take_dialog():
     }
     
     [data-testid="stModal"] [data-baseweb="select"] > div {
+        color: #ffffff !important;
+    }
+    
+    /* カレンダーのスタイル */
+    [data-testid="stDateInputPopover"],
+    [data-baseweb="popover"],
+    .stDateInput [data-baseweb="popover"] {
+        background-color: #2c3e50 !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    /* カレンダーのヘッダー（月と年） */
+    [data-baseweb="calendar"] [data-baseweb="heading"],
+    [data-baseweb="calendar-header"],
+    .stDateInput [data-baseweb="calendar-header"] {
+        background-color: #2c3e50 !important;
+        color: #ffffff !important;
+    }
+    
+    /* カレンダーのナビゲーションボタン（前月・次月） */
+    [data-baseweb="calendar"] button,
+    [data-baseweb="calendar-header"] button {
+        color: #ffffff !important;
+        background-color: transparent !important;
+    }
+    
+    [data-baseweb="calendar"] button:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    /* カレンダーのセレクトボックス（月・年選択） */
+    [data-baseweb="calendar"] select,
+    [data-baseweb="select"] {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* 曜日のヘッダー */
+    [data-baseweb="calendar-grid"] > div:first-child,
+    .stDateInput [role="grid"] > div:first-child {
+        color: #a0a0a0 !important;
+    }
+    
+    /* 日付の数字 */
+    [data-baseweb="calendar"] [role="gridcell"],
+    [data-baseweb="calendar"] [role="gridcell"] > div,
+    [data-baseweb="calendar-day"],
+    .stDateInput [role="gridcell"],
+    .stDateInput [role="gridcell"] button {
+        color: #ffffff !important;
+        background-color: transparent !important;
+    }
+    
+    /* 選択された日付 */
+    [data-baseweb="calendar"] [aria-selected="true"],
+    [data-baseweb="calendar"] [role="gridcell"][aria-selected="true"],
+    .stDateInput [aria-selected="true"] {
+        background-color: #e74c3c !important;
+        color: #ffffff !important;
+        border-radius: 50% !important;
+    }
+    
+    /* 今日の日付 */
+    [data-baseweb="calendar"] [data-highlighted="true"],
+    .stDateInput [data-highlighted="true"] {
+        border: 2px solid #7fb5d4 !important;
+        border-radius: 50% !important;
+    }
+    
+    /* ホバー時の日付 */
+    [data-baseweb="calendar"] [role="gridcell"]:hover,
+    .stDateInput [role="gridcell"]:hover button {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        border-radius: 50% !important;
+    }
+    
+    /* 月外の日付（前月・次月の日付） */
+    [data-baseweb="calendar"] [data-outside-month="true"],
+    .stDateInput [aria-disabled="true"] {
+        color: rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* カレンダー全体の文字色を強制的に白に */
+    [data-testid="stDateInputPopover"] *,
+    [data-baseweb="popover"] *,
+    [data-baseweb="calendar"] * {
         color: #ffffff !important;
     }
     </style>
@@ -983,6 +1130,9 @@ def show_quick_take_dialog():
                 )
                 emp.takes.append(new_take)
                 emp.takes.sort(key=lambda x: x.date)
+                
+                # 法定付与を再適用して最新の状態にする
+                emp = auto_populate_grants(emp)
                 
                 # データベースに保存
                 idx = next(i for i, e in enumerate(st.session_state.employees) if e.id == emp.id)
@@ -1057,7 +1207,7 @@ def show_employee_list():
     if filtered_employees:
         # ヘッダー行
         st.markdown("""
-        <div style="background: linear-gradient(180deg, #d4e8f3 0%, #c4dff0 100%); padding: 0.9rem 1rem; border-radius: 0.8rem 0.8rem 0 0; margin-bottom: 0;">
+        <div style="background: linear-gradient(180deg, #d4e8f3 0%, #c4dff0 100%); padding: 0.9rem 1rem; border-radius: 0.8rem 0.8rem 0 0; margin-bottom: 0.8rem;">
             <div style="display: grid; grid-template-columns: 0.7fr 1.6fr 1.1fr 1.4fr 1.2fr 1.2fr 0.9fr 0.9fr; gap: 0.8rem; align-items: center;">
                 <div style="color: #6b8fa8; font-weight: 500; text-align: center;">コード</div>
                 <div style="color: #6b8fa8; font-weight: 500;">名前</div>
@@ -1079,26 +1229,35 @@ def show_employee_list():
             # 行の背景色
             bg_color = "rgba(230, 247, 251, 0.25)" if i % 2 == 1 else "#ffffff"
             
+            # 最初の行の上部に余白を追加
+            if i == 0:
+                st.markdown('<div style="margin-top: 0.5rem;"></div>', unsafe_allow_html=True)
+            
             # 1行でデータとボタンを表示
             cols = st.columns([0.7, 1.6, 1.1, 1.4, 1.2, 1.2, 0.9, 0.9])
             
+            # 最初の行のパディングを調整
+            top_padding = "1rem" if i == 0 else "0.6rem"
+            
             with cols[0]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0; text-align: center;">{emp.employeeCode}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0; text-align: center;">{emp.employeeCode}</div>', unsafe_allow_html=True)
             with cols[1]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0;">{emp.name}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0;">{emp.name}</div>', unsafe_allow_html=True)
             with cols[2]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0;">{emp.department or "未設定"}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0;">{emp.department or "未設定"}</div>', unsafe_allow_html=True)
             with cols[3]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0;">{emp_type}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0;">{emp_type}</div>', unsafe_allow_html=True)
             with cols[4]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0;">{emp.joinDate or "未設定"}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0;">{emp.joinDate or "未設定"}</div>', unsafe_allow_html=True)
             with cols[5]:
-                st.markdown(f'<div style="color: #4a5568; padding: 0.6rem 0;">{emp.resignationDate or "在籍中"}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #4a5568; padding: {top_padding} 0 0.6rem 0;">{emp.resignationDate or "在籍中"}</div>', unsafe_allow_html=True)
             with cols[6]:
-                st.markdown(f'<div style="color: #2d3748; font-size: 1.25rem; font-weight: 700; padding: 0.6rem 0; text-align: center;">{remaining:.1f}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="color: #2d3748; font-size: 1.25rem; font-weight: 700; padding: {top_padding} 0 0.6rem 0; text-align: center;">{remaining:.1f}</div>', unsafe_allow_html=True)
             with cols[7]:
                 if st.button("取得", key=f"quick_take_{emp.id}", use_container_width=True):
-                    st.session_state.quick_take_employee = emp
+                    # 法定付与を適用した最新の従業員データを使用
+                    emp_with_grants = auto_populate_grants(emp)
+                    st.session_state.quick_take_employee = emp_with_grants
                     st.session_state.show_quick_take_dialog = True
                     st.rerun()
             
@@ -1154,6 +1313,10 @@ def show_confirmation_dialog(message):
     # カスタムスタイル
     st.markdown("""
     <style>
+    /* ダイアログ内のすべてのテキストを白色に強制 */
+    [role="dialog"] *:not(button):not(svg) {
+        color: #ffffff !important;
+    }
     /* ダイアログ全体のスタイル */
     [data-testid="stModal"] {
         background-color: rgba(0, 0, 0, 0.4) !important;
@@ -1165,19 +1328,31 @@ def show_confirmation_dialog(message):
         padding: 20px;
         max-width: 400px;
     }
-    /* ダイアログのタイトル */
+    /* ダイアログのタイトル - すべてのヘッダー要素 */
     [data-testid="stModal"] h1,
     [data-testid="stModal"] h2,
     [data-testid="stModal"] h3,
-    [data-testid="stModal"] [data-testid="stModalHeading"] {
+    [data-testid="stModal"] h4,
+    [data-testid="stModal"] [data-testid="stModalHeading"],
+    [role="dialog"] h1,
+    [role="dialog"] h2,
+    [role="dialog"] h3,
+    [role="dialog"] header {
         color: #ffffff !important;
     }
-    /* メッセージのスタイル */
-    [data-testid="stModal"] p {
-        color: #ffffff;
+    /* メッセージのスタイル - すべてのテキスト要素 */
+    [data-testid="stModal"] p,
+    [data-testid="stModal"] span,
+    [data-testid="stModal"] div,
+    [role="dialog"] p,
+    [role="dialog"] span {
+        color: #ffffff !important;
         font-size: 13px;
         line-height: 1.5;
-        margin-bottom: 20px;
+    }
+    /* st.writeのコンテンツ */
+    [data-testid="stModal"] .element-container p {
+        color: #ffffff !important;
     }
     /* ボタンコンテナ */
     [data-testid="stModal"] [data-testid="stHorizontalBlock"] {
@@ -1220,7 +1395,8 @@ def show_confirmation_dialog(message):
     </style>
     """, unsafe_allow_html=True)
     
-    st.write(message)
+    # メッセージを白色で表示
+    st.markdown(f"<p style='color: #ffffff !important; font-size: 14px;'>{message}</p>", unsafe_allow_html=True)
     
     col1, col2 = st.columns([1, 1])
     with col1:
