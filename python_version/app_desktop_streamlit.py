@@ -59,6 +59,26 @@ def wait_for_streamlit(url, timeout=30):
     return False
 
 
+def cleanup_old_backups(backup_dir: str, prefix: str, keep_count: int):
+    """古いバックアップファイルを削除（最新keep_count件のみ保持）"""
+    try:
+        if not os.path.exists(backup_dir):
+            return
+        
+        backup_files = sorted(
+            [f for f in os.listdir(backup_dir) if f.startswith(prefix) and f.endswith('.json')],
+            reverse=True
+        )
+        
+        for old_backup in backup_files[keep_count:]:
+            old_backup_path = os.path.join(backup_dir, old_backup)
+            if os.path.exists(old_backup_path):
+                os.remove(old_backup_path)
+                print(f"  ✓ 古いバックアップを削除: {old_backup}")
+    except Exception as e:
+        print(f"古いバックアップ削除エラー: {e}")
+
+
 def create_backup_on_close():
     """アプリ終了時にバックアップを作成（個別＋全データエクスポート）"""
     import json
@@ -69,7 +89,7 @@ def create_backup_on_close():
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(current_dir, 'demo_data')
-        backup_dir = os.path.join(data_dir, 'backups')
+        backup_dir = os.path.join(current_dir, '@backups')
         
         # バックアップディレクトリが存在しない場合は作成
         if not os.path.exists(backup_dir):
@@ -111,6 +131,11 @@ def create_backup_on_close():
             with open(export_file, 'w', encoding='utf-8') as f:
                 json.dump(export_data, f, ensure_ascii=False, indent=2)
             print(f"  ✓ 全データをエクスポート: {os.path.basename(export_file)}")
+        
+        # 古いバックアップを削除（最新5件のみ保持）
+        cleanup_old_backups(backup_dir, 'employees_backup', 5)
+        cleanup_old_backups(backup_dir, 'departments_backup', 5)
+        cleanup_old_backups(backup_dir, 'all_data_export', 5)
         
         print("バックアップ完了！")
         

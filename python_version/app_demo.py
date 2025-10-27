@@ -20,7 +20,7 @@ from utils.calculations import (
 
 # データファイルのパス
 DATA_DIR = "demo_data"
-BACKUP_DIR = os.path.join(DATA_DIR, "backups")
+BACKUP_DIR = "@backups"
 EMPLOYEES_FILE = os.path.join(DATA_DIR, "employees.json")
 DEPARTMENTS_FILE = os.path.join(DATA_DIR, "departments.json")
 
@@ -692,6 +692,10 @@ def create_backup(file_path: str):
         if not os.path.exists(file_path):
             return
         
+        # @backupsディレクトリが存在しない場合は作成
+        if not os.path.exists(BACKUP_DIR):
+            os.makedirs(BACKUP_DIR)
+        
         # ファイル名からバックアップ名を生成
         filename = os.path.basename(file_path)
         name_without_ext = os.path.splitext(filename)[0]
@@ -706,12 +710,15 @@ def create_backup(file_path: str):
             json.dump(data, dst, ensure_ascii=False, indent=2)
         
         # 古いバックアップを削除（最新5件のみ保持）
-        backup_files = sorted(
-            [f for f in os.listdir(BACKUP_DIR) if f.startswith(name_without_ext) and f.endswith('.json')],
-            reverse=True
-        )
-        for old_backup in backup_files[5:]:
-            os.remove(os.path.join(BACKUP_DIR, old_backup))
+        if os.path.exists(BACKUP_DIR):
+            backup_files = sorted(
+                [f for f in os.listdir(BACKUP_DIR) if f.startswith(name_without_ext) and f.endswith('.json')],
+                reverse=True
+            )
+            for old_backup in backup_files[5:]:
+                old_backup_path = os.path.join(BACKUP_DIR, old_backup)
+                if os.path.exists(old_backup_path):
+                    os.remove(old_backup_path)
         
     except Exception as e:
         print(f"バックアップエラー: {e}")
@@ -1455,10 +1462,28 @@ def show_employee_form():
     
     # 残日数サマリー
     remaining = calculate_remaining_days(emp.grants, emp.takes, emp.resignationDate)
+    
+    # 時効済みの付与数を計算
+    from datetime import datetime
+    from dateutil.relativedelta import relativedelta
+    today = datetime.now()
+    expired_grants = 0
+    valid_grants = 0
+    for grant in emp.grants:
+        grant_date = datetime.strptime(grant.date, '%Y-%m-%d')
+        expiry_date = grant_date + relativedelta(years=2)
+        if today >= expiry_date:
+            expired_grants += 1
+        else:
+            valid_grants += 1
+    
     st.markdown(f"""
     <div class='stat-card'>
         <h3>現在の残日数（時効考慮）</h3>
         <div class='remaining-days'>{remaining:.1f} <span style='font-size: 1.2rem; font-weight: normal;'>日</span></div>
+        <p style='color: #6b8fa8; margin-top: 0.5rem; font-size: 0.9rem;'>
+            ※有効な付与: {valid_grants}件 | 時効済み付与: {expired_grants}件（計算対象外）
+        </p>
         {f"<p style='color: red; margin-top: 0.5rem;'>※退社日 ({emp.resignationDate}) 以降の付与・取得は計算対象外です。</p>" if emp.resignationDate else ""}
     </div>
     """, unsafe_allow_html=True)
@@ -1631,21 +1656,35 @@ def show_employee_form():
                 expiry_date = datetime.strptime(grant.date, '%Y-%m-%d') + pd.DateOffset(years=2)
                 is_expired = expiry_date.date() < datetime.now().date()
                 
+                # 時効済みの場合は背景色を変更
+                if is_expired:
+                    card_style = "background-color: rgba(200, 200, 200, 0.3); border-radius: 0.5rem; padding: 0.5rem; margin: 0.2rem 0;"
+                    text_color = "#999999"
+                    days_color = "#999999"
+                    reason_color = "#999999"
+                else:
+                    card_style = "background-color: #ffffff; border-radius: 0.5rem; padding: 0.5rem; margin: 0.2rem 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"
+                    text_color = "#4a5568"
+                    days_color = "#4a5568"
+                    reason_color = "#6b8fa8"
+                
                 # 白いカード形式で表示（削除ボタンも含めて）
                 col1, col2, col3, col4, col5 = st.columns([2, 1, 3, 2, 1])
                 
                 # カードのコンテナとして機能
                 with col1:
-                    st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{grant.date}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="color: {text_color}; padding: 0.5rem 0;">{grant.date}</div>', unsafe_allow_html=True)
                 with col2:
-                    st.markdown(f'<div style="color: #4a5568; font-weight: 600; padding: 0.5rem 0;">{grant.days:.1f}日</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="color: {days_color}; font-weight: 600; padding: 0.5rem 0;">{grant.days:.1f}日</div>', unsafe_allow_html=True)
                 with col3:
-                    st.markdown(f'<div style="color: #6b8fa8; font-style: italic; padding: 0.5rem 0;">{grant.reason}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="color: {reason_color}; font-style: italic; padding: 0.5rem 0;">{grant.reason}</div>', unsafe_allow_html=True)
                 with col4:
                     expiry_text = f'時効日: {expiry_date.strftime("%Y-%m-%d")}'
                     if is_expired:
-                        expiry_text += ' <span style="color: red;">🔴 時効</span>'
-                    st.markdown(f'<div style="color: #4a5568; padding: 0.5rem 0;">{expiry_text}</div>', unsafe_allow_html=True)
+                        expiry_text += ' <span style="color: red; font-weight: bold;">🔴 時効済み</span>'
+                    else:
+                        expiry_text += ' <span style="color: green;">✅ 有効</span>'
+                    st.markdown(f'<div style="color: {text_color}; padding: 0.5rem 0;">{expiry_text}</div>', unsafe_allow_html=True)
                 with col5:
                     if st.button("削除", key=f"del_grant_{i}"):
                         st.session_state[f'show_del_grant_dialog_{i}'] = True
